@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+body { background-color: #f8fafc; overscroll-behavior: none; }
+input, select, textarea { outline: none; -webkit-appearance: none; font-family: inherit; }
+input:focus, select:focus, textarea:focus { border-color: #1e3a8a !important; box-shadow: 0 0 0 3px rgba(30,58,138,0.08); }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+@media print { .no-print { display: none !important; } nav, header { display: none !important; } }
