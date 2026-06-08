@@ -16,6 +16,9 @@ export default function AuthPage() {
     e.preventDefault()
     setErr(''); setInfo(''); setLoading(true)
     try {
+      if (!email.endsWith('@kawainter.com')) {
+        throw new Error('Only @kawainter.com email addresses are allowed.')
+      }
       if (mode === 'signup') {
         if (!fullName.trim()) throw new Error('Please enter your full name.')
         await signUp(email, password, fullName.trim(), phone.trim())
@@ -51,20 +54,20 @@ export default function AuthPage() {
             <div>
               <label className="block text-xs text-gray-500 mb-1">Full name *</label>
               <input type="text" value={fullName} onChange={e => setFullName(e.target.value)}
-                placeholder="e.g. Weerada Chuttrakulchai" required
+                placeholder="Full Name" required
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-700" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Phone</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="e.g. 0891991440"
+                placeholder="e.g. 0xxxxxxxxx"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-700" />
             </div>
           </>)}
           <div>
             <label className="block text-xs text-gray-500 mb-1">Email *</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@kawa.com" required
+              placeholder="you@kawainter.com" required
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-700" />
           </div>
           <div>
