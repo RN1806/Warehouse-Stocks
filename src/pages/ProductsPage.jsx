@@ -31,13 +31,27 @@ export default function ProductsPage() {
 
   // Lookup: supplier name -> category (from suppliers table)
   const supCategory = {}
-  suppliers.forEach(s => { supCategory[s.name] = s.category || 'Other' })
+  suppliers.forEach(s => { supCategory[s.name] = s.category || null })
+
+  // Map a product's industry value to one of the 6 category folders
+  const industryToCategory = (ind) => {
+    if (!ind) return 'Other'
+    const i = ind.toLowerCase()
+    if (i.includes('paint') || i.includes('construction')) return 'Paint & Construction'
+    if (i.includes('s plus') || i.includes('splus')) return 'S Plus'
+    if (i.includes('personal') || i.includes('cosmetic') || i.includes('home') || i.includes('household')) return 'Personal Care & Home Care'
+    if (i.includes('agri') || i.includes('agro')) return 'Agriculture'
+    if (i.includes('lubric')) return 'Lubricant'
+    if (i.includes('plastic')) return 'Plastics'
+    return 'Other'
+  }
 
   // Group: category -> supplier -> products
+  // Prefer the supplier's category; fall back to the product's industry.
   const byCategory = {}
   filtered.forEach(p => {
     const sup = p.suppliers?.name || p.supplier_name || 'No Supplier'
-    const cat = supCategory[sup] || 'Other'
+    const cat = supCategory[sup] || industryToCategory(p.industry)
     if (!byCategory[cat]) byCategory[cat] = {}
     if (!byCategory[cat][sup]) byCategory[cat][sup] = []
     byCategory[cat][sup].push(p)
