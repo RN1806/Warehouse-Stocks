@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useProducts, addProduct, deleteProduct } from '../hooks/useWarehouse'
 import { useSuppliers } from '../hooks/useWarehouse'
+import { useAuth } from '../lib/AuthContext'
 import { INDUSTRIES, AMOUNT_UNITS } from '../lib/constants'
 import { Spinner, Empty } from '../components/UI'
 import SupplierPicker from '../components/SupplierPicker'
@@ -8,6 +9,8 @@ import SupplierPicker from '../components/SupplierPicker'
 export default function ProductsPage() {
   const { products, loading, refetch } = useProducts()
   const { suppliers } = useSuppliers()
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'admin'
   const [filterSupplier, setFilterSupplier] = useState('')
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
@@ -109,8 +112,10 @@ export default function ProductsPage() {
                     <p className="text-sm font-bold text-gray-900">{p.current_qty ?? 0}</p>
                     <p className="text-xs text-gray-400">{p.default_unit || 'units'}</p>
                   </div>
-                  <button onClick={() => handleDelete(p.id)}
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-gray-200 hover:bg-red-50 hover:text-red-400 flex-shrink-0">✕</button>
+                  {isAdmin && (
+                    <button onClick={() => handleDelete(p.id)}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-gray-200 hover:bg-red-50 hover:text-red-400 flex-shrink-0">×</button>
+                  )}
                 </div>
               ))}
             </div>
