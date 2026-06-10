@@ -106,6 +106,8 @@ export function DeliveryDetailPage({ id, onBack }) {
   const [delivery, setDelivery] = useState(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const { profile } = useAuth()
+  const canEditStatus = profile?.role === 'admin' || (delivery && delivery.sales_rep_id === profile?.id)
 
   useEffect(() => {
     getDelivery(id).then(d => { setDelivery(d); setLoading(false) }).catch(() => setLoading(false))
@@ -199,17 +201,23 @@ export function DeliveryDetailPage({ id, onBack }) {
           </SectionCard>
         </div>
 
-        <div className="no-print fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 max-w-sm mx-auto">
-          <p className="text-xs text-gray-400 text-center mb-2">Update status</p>
-          <div className="flex gap-2">
-            {['draft','sent','received'].map(s => (
-              <button key={s} onClick={() => changeStatus(s)} disabled={updating || delivery.status===s}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-medium capitalize transition-colors ${delivery.status===s ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-600'}`}>
-                {s}
-              </button>
-            ))}
+        {canEditStatus ? (
+          <div className="no-print fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 max-w-sm mx-auto">
+            <p className="text-xs text-gray-400 text-center mb-2">Update status</p>
+            <div className="flex gap-2">
+              {['draft','sent','received'].map(s => (
+                <button key={s} onClick={() => changeStatus(s)} disabled={updating || delivery.status===s}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium capitalize transition-colors ${delivery.status===s ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-600'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="no-print fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 max-w-sm mx-auto">
+            <p className="text-xs text-gray-400 text-center">Only the form's creator or an admin can change the status</p>
+          </div>
+        )}
       </div>
     </>
   )

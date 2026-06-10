@@ -192,7 +192,8 @@ export async function createDelivery(form, items) {
   const { count } = await supabase.from('deliveries').select('*', { count: 'exact', head: true })
   const num = String((count ?? 0) + 1).padStart(3, '0')
   const form_number = `KW-${dateStr}-${num}`
-  const { data, error } = await supabase.from('deliveries').insert({ ...form, form_number }).select().single()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data, error } = await supabase.from('deliveries').insert({ ...form, form_number, sales_rep_id: user?.id ?? null }).select().single()
   if (error) throw error
   if (items.length > 0) {
     const rows = items.map((item, i) => ({ ...item, delivery_id: data.id, item_order: i + 1 }))
