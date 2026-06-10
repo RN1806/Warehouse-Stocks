@@ -96,8 +96,10 @@ export default function ProductsPage() {
         <input type="search" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search products…"
           className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white outline-none focus:border-blue-700" />
-        <button onClick={() => setShowAdd(true)}
-          className="bg-blue-900 text-white text-sm px-4 rounded-xl font-medium">+ Add</button>
+        {isAdmin && (
+          <button onClick={() => setShowAdd(true)}
+            className="bg-blue-900 text-white text-sm px-4 rounded-xl font-medium">+ Add</button>
+        )}
       </div>
 
       {/* Supplier filter */}

@@ -24,6 +24,7 @@ function timeAgo(str) {
 
 export default function StockPage() {
   const { profile, session } = useAuth()
+  const isAdmin = profile?.role === 'admin'
   const { products } = useProducts()
   const { updates, loading, refetch } = useStockUpdates()
   const [showForm, setShowForm] = useState(false)
@@ -161,13 +162,13 @@ export default function StockPage() {
                 <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                   <p className="text-xs text-gray-400">by {u.updated_by_name || '—'}</p>
                   <div className="flex gap-2">
-                    {u.status === 'pending' && (
+                    {isAdmin && u.status === 'pending' && (
                       <button onClick={() => handleConfirm(u)} disabled={confirming === u.id}
                         className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-60">
                         {confirming === u.id ? '…' : '✓ Confirm'}
                       </button>
                     )}
-                    {u.status === 'confirmed' && (
+                    {isAdmin && u.status === 'confirmed' && (
                       <button onClick={() => handleUndo(u)} disabled={undoing === u.id}
                         className="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg disabled:opacity-60">
                         {undoing === u.id ? '…' : '↩ Undo'}
@@ -182,11 +183,13 @@ export default function StockPage() {
       </div>
 
       {/* FAB */}
-      <button onClick={() => setShowForm(true)}
-        className="fixed bottom-20 right-4 bg-blue-900 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-800 transition-colors"
-        style={{ width: 52, height: 52 }}>
-        <span className="text-2xl font-light">+</span>
-      </button>
+      {isAdmin && (
+        <button onClick={() => setShowForm(true)}
+          className="fixed bottom-20 right-4 bg-blue-900 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-800 transition-colors"
+          style={{ width: 52, height: 52 }}>
+          <span className="text-2xl font-light">+</span>
+        </button>
+      )}
 
       {/* Stock update form modal */}
       {showForm && (
