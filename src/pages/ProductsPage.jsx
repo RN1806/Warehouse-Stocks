@@ -59,15 +59,18 @@ export default function ProductsPage() {
     if (i.includes('agri') || i.includes('agro')) return 'Agriculture'
     if (i.includes('lubric')) return 'Lubricant'
     if (i.includes('plastic')) return 'Plastics'
+    if (i.includes('food')) return 'Food'
     return 'Other'
   }
 
   // Group: category -> supplier -> products
-  // Prefer the supplier's category; fall back to the product's industry.
+  // The product's own industry wins when it's Food; otherwise prefer the
+  // supplier's category, then fall back to the product's industry.
   const byCategory = {}
   filtered.forEach(p => {
     const sup = p.suppliers?.name || p.supplier_name || 'No Supplier'
-    const cat = supCategory[sup] || industryToCategory(p.industry)
+    const industryCat = industryToCategory(p.industry)
+    const cat = industryCat === 'Food' ? 'Food' : (supCategory[sup] || industryCat)
     if (!byCategory[cat]) byCategory[cat] = {}
     if (!byCategory[cat][sup]) byCategory[cat][sup] = []
     byCategory[cat][sup].push(p)

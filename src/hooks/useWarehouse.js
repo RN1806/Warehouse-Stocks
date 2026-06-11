@@ -37,11 +37,22 @@ export function useProducts() {
   const [loading, setLoading] = useState(true)
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase
-      .from('products')
-      .select('*, suppliers(id, name, category)')
-      .order('name')
-    if (data) setProducts(data)
+    // Supabase caps a single select at 1000 rows, so page through all.
+    let all = []
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, suppliers(id, name, category)')
+        .order('name')
+        .range(from, from + pageSize - 1)
+      if (error || !data || data.length === 0) break
+      all = all.concat(data)
+      if (data.length < pageSize) break
+      from += pageSize
+    }
+    setProducts(all)
     setLoading(false)
   }, [])
 
