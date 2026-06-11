@@ -15,12 +15,21 @@ function money(amount, currency) {
 export default function ShipmentsPage() {
   const { profile } = useAuth()
   const isAdmin = profile?.role === 'admin'
+  const myIndustries = profile?.industries || []
   const { shipments, loading, refetch } = useShipments()
   const [showForm, setShowForm] = useState(false)
   const [detailId, setDetailId] = useState(null)
 
+  // Can this viewer see the cost of a given shipment?
+  // Admins always; staff only if one of their industries matches a product's industry.
+  const canSeeCost = (s) => {
+    if (isAdmin) return true
+    const shipInds = (s.shipment_items || []).map(it => it.industry).filter(Boolean)
+    return shipInds.some(ind => myIndustries.includes(ind))
+  }
+
   if (detailId) {
-    return <ShipmentDetail id={detailId} onBack={() => setDetailId(null)} onDeleted={() => { setDetailId(null); refetch() }} isAdmin={isAdmin} />
+    return <ShipmentDetail id={detailId} onBack={() => setDetailId(null)} onDeleted={() => { setDetailId(null); refetch() }} isAdmin={isAdmin} myIndustries={myIndustries} />
   }
 
   return (
@@ -42,7 +51,7 @@ export default function ShipmentsPage() {
               className="w-full text-left bg-white border border-gray-100 rounded-xl px-4 py-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-900">{s.ship_number}</p>
-                <span className="text-xs font-bold text-blue-900">{money(s.cost, s.currency)}</span>
+                {canSeeCost(s) && <span className="text-xs font-bold text-blue-900">{money(s.cost, s.currency)}</span>}
               </div>
               <p className="text-xs text-gray-500 mt-0.5">📦 {s.tracking_number || 'No tracking'}</p>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -173,7 +182,7 @@ function ShipmentForm({ onClose, onSaved }) {
 }
 
 // ── Printable detail ──────────────────────────────────────
-function ShipmentDetail({ id, onBack, onDeleted, isAdmin }) {
+function ShipmentDetail({ id, onBack, onDeleted, isAdmin, myIndustries = [] }) {
   const [ship, setShip] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -184,6 +193,9 @@ function ShipmentDetail({ id, onBack, onDeleted, isAdmin }) {
   if (loading || !ship) return <div className="p-8"><Spinner /></div>
 
   const items = (ship.shipment_items || []).sort((a, b) => (a.item_order || 0) - (b.item_order || 0))
+
+  const shipInds = items.map(it => it.industry).filter(Boolean)
+  const canSeeCost = isAdmin || shipInds.some(ind => myIndustries.includes(ind))
 
   async function handleDelete() {
     if (!confirm('Delete this shipment?')) return
@@ -212,7 +224,7 @@ function ShipmentDetail({ id, onBack, onDeleted, isAdmin }) {
               <tr className="border-b border-gray-100"><td className="py-2 text-gray-400 w-1/3">Tracking #</td><td className="py-2 font-medium">{ship.tracking_number || '—'}</td></tr>
               <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Destination</td><td className="py-2">{ship.destination || '—'}</td></tr>
               <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Courier</td><td className="py-2">{ship.courier || '—'}</td></tr>
-              <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Delivery cost</td><td className="py-2 font-bold text-blue-900">{money(ship.cost, ship.currency)}</td></tr>
+              {canSeeCost && <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Delivery cost</td><td className="py-2 font-bold text-blue-900">{money(ship.cost, ship.currency)}</td></tr>}
               <tr><td className="py-2 text-gray-400">Date</td><td className="py-2">{ship.created_at ? new Date(ship.created_at).toLocaleDateString('en-GB') : '—'}</td></tr>
             </tbody>
           </table>

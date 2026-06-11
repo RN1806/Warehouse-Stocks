@@ -274,11 +274,21 @@ export async function createShipment(form, items) {
   if (error) throw error
   const filled = items.filter(it => it.product_name.trim())
   if (filled.length > 0) {
+    // Look up each product's industry so cost visibility can be matched later.
+    const names = filled.map(it => it.product_name.trim())
+    const { data: prods } = await supabase
+      .from('products')
+      .select('name, industry')
+      .in('name', names)
+    const indByName = {}
+    ;(prods || []).forEach(p => { indByName[p.name] = p.industry })
+
     const rows = filled.map((it, i) => ({
       shipment_id: data.id,
       product_name: it.product_name.trim(),
       quantity: it.quantity || null,
       unit: it.unit || null,
+      industry: indByName[it.product_name.trim()] || null,
       item_order: i + 1,
     }))
     const { error: ie } = await supabase.from('shipment_items').insert(rows)
