@@ -6,6 +6,17 @@ import { Spinner, Empty } from '../components/UI'
 import SupplierPicker from '../components/SupplierPicker'
 import { useAuth } from '../lib/AuthContext'
 
+const CAT_ICONS = {
+  'Paint & Construction': '🏗️',
+  'S Plus': '➕',
+  'Personal Care & Home Care': '🧴',
+  'Agriculture': '🌾',
+  'Lubricant': '⚙️',
+  'Plastics': '🧪',
+  'Food': '🍽️',
+  'Other': '📦',
+}
+
 export default function ProductsPage() {
   const { products, loading, refetch } = useProducts()
   const { suppliers, refetch: refetchSuppliers } = useSuppliers()
@@ -114,10 +125,10 @@ export default function ProductsPage() {
       <div className="flex gap-2 mb-3">
         <input type="search" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search products…"
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white outline-none focus:border-blue-700" />
+          className="flex-1 card-flat px-4 py-2.5 text-sm outline-none focus:border-blue-700" />
         {isAdmin && (
           <button onClick={() => setShowAdd(true)}
-            className="bg-blue-900 text-white text-sm px-4 rounded-xl font-medium">+ Add</button>
+            className="btn-primary text-sm px-5 rounded-xl">+ Add</button>
         )}
       </div>
 
@@ -140,42 +151,46 @@ export default function ProductsPage() {
           const catCount = supGroups.reduce((n, [, ps]) => n + ps.length, 0)
           const isOpen = openCats[cat]
           return (
-            <div key={cat} className="mb-3">
+            <div key={cat} className="mb-2.5">
               {/* Category folder header */}
               <button onClick={() => toggleCat(cat)}
-                className="w-full flex items-center gap-2 bg-blue-900 text-white rounded-xl px-3 py-2.5">
-                <span className={`transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>
-                <span className="text-sm font-semibold flex-1 text-left">{cat}</span>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">{supGroups.length} suppliers</span>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">{catCount}</span>
+                className={`w-full flex items-center gap-3 rounded-2xl px-3.5 py-3.5 transition-all ${isOpen ? 'brand-header text-white card-lift' : 'card text-slate-900'}`}>
+                <span className={`flex items-center justify-center w-9 h-9 rounded-xl text-base flex-shrink-0 ${isOpen ? 'bg-white/15' : 'bg-slate-900 text-white'}`}>
+                  {CAT_ICONS[cat] || '📁'}
+                </span>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold display">{cat}</p>
+                  <p className={`text-[11px] ${isOpen ? 'text-sky-200/80' : 'text-slate-400'}`}>{supGroups.length} suppliers · {catCount} products</p>
+                </div>
+                <span className={`transition-transform text-xs ${isOpen ? 'rotate-90 text-white' : 'text-slate-400'}`}>▶</span>
               </button>
 
               {/* Suppliers inside the category */}
               {isOpen && (
-                <div className="mt-2 ml-2 space-y-4">
+                <div className="mt-2.5 ml-2 space-y-4">
                   {supGroups.map(([supName, prods]) => (
                     <div key={supName}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      <div className="flex items-center gap-2 mb-2 rail pl-3">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
                           {supName[0].toUpperCase()}
                         </div>
-                        <p className="text-sm font-semibold text-gray-700">{supName}</p>
-                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{prods.length}</span>
+                        <p className="text-sm font-semibold text-slate-700">{supName}</p>
+                        <span className="text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{prods.length}</span>
                       </div>
                       <div className="space-y-1.5 ml-9">
                         {prods.map(p => (
-                          <div key={p.id} className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                          <div key={p.id} className="card-flat px-3.5 py-3 flex items-center gap-3">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                              {p.industry && <p className="text-xs text-gray-400">{p.industry}</p>}
+                              <p className="text-sm font-semibold text-slate-900 truncate">{p.name}</p>
+                              {p.industry && <p className="text-[11px] text-slate-400 mt-0.5">{p.industry}</p>}
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-sm font-bold text-gray-900">{p.current_qty ?? 0}</p>
-                              <p className="text-xs text-gray-400">{p.default_unit || 'units'}</p>
+                            <div className="text-right flex-shrink-0 bg-slate-50 rounded-lg px-2.5 py-1">
+                              <p className="text-sm font-bold text-slate-900 leading-none">{p.current_qty ?? 0}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">{p.default_unit || 'units'}</p>
                             </div>
                             {isAdmin && (
                               <button onClick={() => handleDelete(p.id)}
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-gray-200 hover:bg-red-50 hover:text-red-400 flex-shrink-0">✕</button>
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 flex-shrink-0">✕</button>
                             )}
                           </div>
                         ))}

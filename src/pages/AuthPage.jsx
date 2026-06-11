@@ -35,19 +35,19 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 flex flex-col items-center justify-center px-5">
+    <div className="min-h-screen brand-header flex flex-col items-center justify-center px-5">
       <div className="mb-8 text-center">
-        <div className="w-[72px] h-[72px] bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 card-shadow-lg">
-          <span className="text-3xl font-bold text-slate-900">K</span>
+        <div className="w-[76px] h-[76px] bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 card-lift">
+          <span className="display text-4xl font-extrabold text-slate-900">K</span>
         </div>
-        <h1 className="text-xl font-semibold text-white tracking-tight">KAWA International</h1>
-        <p className="text-sm text-slate-400 mt-1">Sample Delivery System</p>
+        <h1 className="text-2xl font-bold text-white display tracking-tight">KAWA International</h1>
+        <p className="text-sm text-sky-300/80 mt-1">Sample Delivery System</p>
       </div>
-      <div className="w-full max-w-sm bg-white rounded-2xl card-shadow-lg p-6">
+      <div className="w-full max-w-sm bg-white rounded-2xl card-lift p-6">
         <div className="flex bg-slate-100 rounded-xl p-1 mb-5">
           {['login','signup'].map(m => (
             <button key={m} onClick={() => { setMode(m); setErr(''); setInfo('') }}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode===m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${mode===m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
               {m === 'login' ? 'Sign in' : 'Sign up'}
             </button>
           ))}
@@ -92,7 +92,7 @@ export default function AuthPage() {
           {err  && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
           {info && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">{info}</p>}
           <button type="submit" disabled={loading}
-            className="w-full bg-blue-900 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-800 disabled:opacity-60 transition-colors">
+            className="w-full btn-primary rounded-xl py-3 text-sm">
             {loading ? '…' : mode === 'login' ? 'Sign in' : mode === 'reset' ? 'Send reset link' : 'Create account'}
           </button>
         </form>
