@@ -26,16 +26,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function signUp(email, password, fullName, phone) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone: phone || null,
-        }
-      }
-    })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
     const { error: pe } = await supabase.from('sales_reps').insert({
       id: data.user.id, full_name: fullName, email, phone: phone || null
@@ -50,8 +41,15 @@ export function AuthProvider({ children }) {
 
   async function signOut() { await supabase.auth.signOut() }
 
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) throw error
+  }
+
   return (
-    <AuthContext.Provider value={{ session, profile, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, profile, signUp, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )

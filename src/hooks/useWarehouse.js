@@ -21,6 +21,16 @@ export function useSuppliers() {
   return { suppliers, grouped, refetch: fetch }
 }
 
+export async function addSupplier({ name, category }) {
+  const { data, error } = await supabase
+    .from('suppliers')
+    .insert({ name: name.trim(), category: category || 'Other' })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // ── Products ──────────────────────────────────────────────
 export function useProducts() {
   const [products, setProducts] = useState([])

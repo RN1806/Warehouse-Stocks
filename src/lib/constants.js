@@ -68,6 +68,16 @@ export const ALL_SUPPLIERS = [...new Set(
 // Amount units for packaging
 export const AMOUNT_UNITS = ['g', 'kg', 'ml', 'L', 'bottles', 'bags', 'pcs', 'drums', 'cans']
 
+export const SUPPLIER_CATEGORIES = [
+  'Paint & Construction',
+  'S Plus',
+  'Personal Care & Home Care',
+  'Agriculture',
+  'Lubricant',
+  'Plastics',
+  'Other',
+]
+
 // Gram presets 5–1000g
 export const GRAM_PRESETS = [5, 10, 25, 50, 100, 250, 500, 1000]
 

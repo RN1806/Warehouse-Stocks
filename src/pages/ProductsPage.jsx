@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { useProducts, addProduct, deleteProduct } from '../hooks/useWarehouse'
+import { useProducts, addProduct, deleteProduct, addSupplier } from '../hooks/useWarehouse'
 import { useSuppliers } from '../hooks/useWarehouse'
-import { INDUSTRIES, AMOUNT_UNITS } from '../lib/constants'
+import { INDUSTRIES, AMOUNT_UNITS, SUPPLIER_CATEGORIES } from '../lib/constants'
 import { Spinner, Empty } from '../components/UI'
 import SupplierPicker from '../components/SupplierPicker'
 import { useAuth } from '../lib/AuthContext'
 
 export default function ProductsPage() {
   const { products, loading, refetch } = useProducts()
-  const { suppliers } = useSuppliers()
+  const { suppliers, refetch: refetchSuppliers } = useSuppliers()
   const { profile } = useAuth()
   const isAdmin = profile?.role === 'admin'
   const [filterSupplier, setFilterSupplier] = useState('')
@@ -18,6 +18,22 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [openCats, setOpenCats] = useState({})
+  const [showNewSup, setShowNewSup] = useState(false)
+  const [newSup, setNewSup] = useState({ name:'', category:'' })
+  const [savingSup, setSavingSup] = useState(false)
+
+  async function handleAddSupplier() {
+    if (!newSup.name.trim()) { setErr('Supplier name required'); return }
+    setSavingSup(true); setErr('')
+    try {
+      await addSupplier({ name: newSup.name, category: newSup.category })
+      await refetchSuppliers()
+      setF('supplier_name', newSup.name.trim())
+      setNewSup({ name:'', category:'' })
+      setShowNewSup(false)
+    } catch (e) { setErr(e.message) }
+    finally { setSavingSup(false) }
+  }
 
   const toggleCat = (cat) => setOpenCats(o => ({ ...o, [cat]: !o[cat] }))
 
@@ -184,8 +200,30 @@ export default function ProductsPage() {
                   placeholder="e.g. The Dream Suite" required className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>Supplier</label>
-                <SupplierPicker value={form.supplier_name} onChange={v => setF('supplier_name', v)} />
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>Supplier</label>
+                  <button type="button" onClick={() => setShowNewSup(v => !v)}
+                    className="text-xs text-blue-700 hover:underline mb-1">
+                    {showNewSup ? 'Cancel' : '+ New supplier'}
+                  </button>
+                </div>
+                {showNewSup ? (
+                  <div className="space-y-2 bg-gray-50 rounded-xl p-3">
+                    <input value={newSup.name} onChange={e => setNewSup(s => ({ ...s, name: e.target.value }))}
+                      placeholder="Supplier name" className={inputCls} />
+                    <select value={newSup.category} onChange={e => setNewSup(s => ({ ...s, category: e.target.value }))}
+                      className={inputCls}>
+                      <option value="">Select category…</option>
+                      {SUPPLIER_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                    <button type="button" onClick={handleAddSupplier} disabled={savingSup}
+                      className="w-full bg-blue-900 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-60">
+                      {savingSup ? 'Saving…' : 'Save supplier'}
+                    </button>
+                  </div>
+                ) : (
+                  <SupplierPicker value={form.supplier_name} onChange={v => setF('supplier_name', v)} />
+                )}
               </div>
               <div>
                 <label className={labelCls}>Industry</label>
