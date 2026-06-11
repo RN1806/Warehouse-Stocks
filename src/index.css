@@ -1,10 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Professional UI font stack — Inter with system fallbacks */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --navy: #0f172a;
+  --navy-2: #1e293b;
+  --primary: #1e3a8a;
+  --primary-hover: #1e40af;
+  --line: #e2e8f0;
+}
+
 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-body { background-color: #f8fafc; overscroll-behavior: none; }
+
+html, body {
+  background-color: #f1f5f9;
+  overscroll-behavior: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #0f172a;
+}
+
 input, select, textarea { outline: none; -webkit-appearance: none; font-family: inherit; }
-input:focus, select:focus, textarea:focus { border-color: #1e3a8a !important; box-shadow: 0 0 0 3px rgba(30,58,138,0.08); }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(30,58,138,0.10);
+}
+
+/* Refined typographic details */
+h1, h2, h3 { letter-spacing: -0.01em; }
+.eyebrow { letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Soft, layered card shadow for a premium feel */
+.card-shadow { box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06); }
+.card-shadow-lg { box-shadow: 0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04); }
+
+/* Brand gradient for the header */
+.brand-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
 @media print { .no-print { display: none !important; } nav, header { display: none !important; } }

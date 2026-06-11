@@ -41,17 +41,17 @@ function Shell() {
   const isSubView = view !== 'list'
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans max-w-sm mx-auto">
+    <div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto">
       {!isSubView && (
-        <header className="bg-slate-900 px-4 pt-10 pb-4 sticky top-0 z-10">
+        <header className="brand-header px-5 pt-11 pb-5 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-400 text-xs">KAWA International</p>
-              <h1 className="text-white text-base font-semibold">{TITLES[tab]}</h1>
+              <p className="text-slate-400 text-[11px] font-medium eyebrow">KAWA International</p>
+              <h1 className="text-white text-lg font-semibold mt-0.5">{TITLES[tab]}</h1>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full" title="Realtime" />
-              <span className="text-slate-300 text-xs">{profile?.full_name?.split(' ')[0] ?? ''}</span>
+            <div className="flex items-center gap-2 bg-white/10 rounded-full pl-2 pr-3 py-1.5">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" title="Live" />
+              <span className="text-slate-200 text-xs font-medium">{profile?.full_name?.split(' ')[0] ?? ''}</span>
             </div>
           </div>
         </header>
@@ -68,14 +68,17 @@ function Shell() {
       </main>
 
       {!isSubView && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex max-w-sm mx-auto z-10">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 transition-colors ${tab===t.id ? 'text-blue-900' : 'text-gray-400'}`}>
-              <span className="text-lg leading-none">{t.icon}</span>
-              <span className="text-xs">{t.label}</span>
-            </button>
-          ))}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 flex max-w-sm mx-auto z-10 px-1 pb-1">
+          {TABS.map(t => {
+            const active = tab === t.id
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className="flex-1 flex flex-col items-center pt-2 pb-1.5 gap-1 transition-colors">
+                <span className={`flex items-center justify-center w-12 h-7 rounded-full text-lg leading-none transition-all ${active ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>{t.icon}</span>
+                <span className={`text-[10px] font-medium ${active ? 'text-slate-900' : 'text-slate-400'}`}>{t.label}</span>
+              </button>
+            )
+          })}
         </nav>
       )}
     </div>

@@ -15,14 +15,14 @@ export function Avatar({ name = '?', size = 'sm' }) {
 
 export function StatusBadge({ status }) {
   const map = {
-    draft:    { label: 'Draft',    cls: 'bg-gray-100 text-gray-600' },
-    sent:     { label: 'Sent',     cls: 'bg-blue-100 text-blue-700' },
-    received: { label: 'Received', cls: 'bg-green-100 text-green-700' },
-    pending:  { label: 'Pending',  cls: 'bg-amber-100 text-amber-700' },
-    confirmed:{ label: 'Confirmed',cls: 'bg-green-100 text-green-700' },
+    draft:    { label: 'Draft',    cls: 'bg-slate-100 text-slate-600 ring-slate-200' },
+    sent:     { label: 'Sent',     cls: 'bg-blue-50 text-blue-700 ring-blue-200' },
+    received: { label: 'Received', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+    pending:  { label: 'Pending',  cls: 'bg-amber-50 text-amber-700 ring-amber-200' },
+    confirmed:{ label: 'Confirmed',cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
   }
   const { label, cls } = map[status] ?? map.draft
-  return <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${cls}`}>{label}</span>
+  return <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ring-1 ring-inset ${cls}`}>{label}</span>
 }
 
 export function IndustryBadge({ industry }) {
@@ -35,14 +35,14 @@ export function IndustryBadge({ industry }) {
 }
 
 export function Spinner() {
-  return <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" /></div>
+  return <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" /></div>
 }
 
 export function Empty({ icon, message, action }) {
   return (
-    <div className="flex flex-col items-center py-16 text-gray-400">
-      <span className="text-4xl mb-3">{icon}</span>
-      <p className="text-sm mb-4">{message}</p>
+    <div className="flex flex-col items-center py-16 text-slate-400">
+      <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl mb-3">{icon}</div>
+      <p className="text-sm text-slate-500 mb-4">{message}</p>
       {action}
     </div>
   )
