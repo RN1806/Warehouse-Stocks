@@ -19,6 +19,7 @@ export default function ShipmentsPage() {
   const { shipments, loading, refetch } = useShipments()
   const [showForm, setShowForm] = useState(false)
   const [detailId, setDetailId] = useState(null)
+  const [dirFilter, setDirFilter] = useState('send')
 
   // Can this viewer see the cost of a given shipment?
   // Admins always; staff only if one of their industries matches a product's industry.
@@ -32,21 +33,33 @@ export default function ShipmentsPage() {
     return <ShipmentDetail id={detailId} onBack={() => setDetailId(null)} onDeleted={() => { setDetailId(null); refetch() }} isAdmin={isAdmin} myIndustries={myIndustries} />
   }
 
+  const filtered = shipments.filter(s => (s.direction || 'send') === dirFilter)
+
   return (
     <div className="px-4 pb-24 pt-2">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-gray-400">{shipments.length} shipments</p>
+        <p className="text-xs text-gray-400">{filtered.length} shipments</p>
         {isAdmin && (
           <button onClick={() => setShowForm(true)}
             className="bg-blue-900 text-white text-sm px-4 py-2 rounded-xl font-medium">+ New shipment</button>
         )}
       </div>
 
-      {loading ? <Spinner /> : shipments.length === 0 ? (
-        <Empty icon="✈️" message="No shipments yet" />
+      {/* Sent / Received filter */}
+      <div className="flex bg-gray-100 rounded-xl p-1 mb-3">
+        {[['send', '📤 Sent'], ['receive', '📥 Received']].map(([v, lbl]) => (
+          <button key={v} onClick={() => setDirFilter(v)}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${dirFilter === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <Spinner /> : filtered.length === 0 ? (
+        <Empty icon="✈️" message={dirFilter === 'send' ? 'No sent shipments yet' : 'No received shipments yet'} />
       ) : (
         <div className="space-y-2">
-          {shipments.map(s => (
+          {filtered.map(s => (
             <button key={s.id} onClick={() => setDetailId(s.id)}
               className="w-full text-left bg-white border border-gray-100 rounded-xl px-4 py-3">
               <div className="flex items-center justify-between">
@@ -70,6 +83,7 @@ export default function ShipmentsPage() {
 // ── Create form ───────────────────────────────────────────
 function ShipmentForm({ onClose, onSaved }) {
   const [form, setForm] = useState({
+    direction: 'send',
     tracking_number: '', destination: '', courier: '',
     cost: '', currency: 'THB', notes: '',
   })
@@ -105,6 +119,18 @@ function ShipmentForm({ onClose, onSaved }) {
         <h2 className="text-base font-semibold text-gray-900 mb-4">New Shipment (Abroad)</h2>
 
         <div className="space-y-3">
+          {/* Direction toggle */}
+          <div>
+            <label className={labelCls}>Direction *</label>
+            <div className="flex gap-2">
+              {[['send', '📤 Send abroad'], ['receive', '📥 Receive from abroad']].map(([v, lbl]) => (
+                <button key={v} type="button" onClick={() => setF('direction', v)}
+                  className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-colors ${form.direction === v ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-600'}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className={labelCls}>Tracking number *</label>
             <input value={form.tracking_number} onChange={e => setF('tracking_number', e.target.value)}
@@ -112,7 +138,7 @@ function ShipmentForm({ onClose, onSaved }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelCls}>Destination</label>
+              <label className={labelCls}>{form.direction === 'receive' ? 'Origin' : 'Destination'}</label>
               <input value={form.destination} onChange={e => setF('destination', e.target.value)}
                 placeholder="e.g. Vietnam" className={inputCls} />
             </div>
@@ -216,13 +242,13 @@ function ShipmentDetail({ id, onBack, onDeleted, isAdmin, myIndustries = [] }) {
           <div className="text-center mb-4">
             <p className="text-xs text-gray-400">KAWA International Group</p>
             <h2 className="text-lg font-bold text-gray-900">Shipment Report</h2>
-            <p className="text-sm text-gray-500">{ship.ship_number}</p>
+            <p className="text-sm text-gray-500">{ship.ship_number} · {(ship.direction || 'send') === 'receive' ? '📥 Received from abroad' : '📤 Sent abroad'}</p>
           </div>
 
           <table className="w-full text-sm mb-4">
             <tbody>
               <tr className="border-b border-gray-100"><td className="py-2 text-gray-400 w-1/3">Tracking #</td><td className="py-2 font-medium">{ship.tracking_number || '—'}</td></tr>
-              <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Destination</td><td className="py-2">{ship.destination || '—'}</td></tr>
+              <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">{(ship.direction || 'send') === 'receive' ? 'Origin' : 'Destination'}</td><td className="py-2">{ship.destination || '—'}</td></tr>
               <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Courier</td><td className="py-2">{ship.courier || '—'}</td></tr>
               {canSeeCost && <tr className="border-b border-gray-100"><td className="py-2 text-gray-400">Delivery cost</td><td className="py-2 font-bold text-blue-900">{money(ship.cost, ship.currency)}</td></tr>}
               <tr><td className="py-2 text-gray-400">Date</td><td className="py-2">{ship.created_at ? new Date(ship.created_at).toLocaleDateString('en-GB') : '—'}</td></tr>
