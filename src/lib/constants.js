@@ -9,6 +9,7 @@ export const INDUSTRIES = [
   'Food',
   'Lubricant',
   'Water Treatment',
+  'S Plus',
 ]
 
 export const INDUSTRY_ICONS = {
@@ -22,6 +23,7 @@ export const INDUSTRY_ICONS = {
   'Food':                    '🍽️',
   'Lubricant':               '⚙️',
   'Water Treatment':         '💧',
+  'S Plus':                  '➕',
 }
 
 // Suppliers from Sheet1 of Supplier_List.xlsx, organized by industry category
