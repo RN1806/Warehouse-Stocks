@@ -223,3 +223,60 @@ export async function deleteDelivery(id) {
   const { error } = await supabase.from('deliveries').delete().eq('id', id)
   if (error) throw error
 }
+
+// ── Shipments (abroad orders) ─────────────────────────────
+export function useShipments() {
+  const [shipments, setShipments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const fetch = useCallback(async () => {
+    const { data } = await supabase
+      .from('shipments')
+      .select('*, shipment_items(*)')
+      .order('created_at', { ascending: false })
+    if (data) setShipments(data)
+    setLoading(false)
+  }, [])
+  useEffect(() => { fetch() }, [fetch])
+  return { shipments, loading, refetch: fetch }
+}
+
+export async function getShipment(id) {
+  const { data, error } = await supabase
+    .from('shipments')
+    .select('*, shipment_items(*)')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function createShipment(form, items) {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const { count } = await supabase.from('shipments').select('*', { count: 'exact', head: true })
+  const num = String((count ?? 0) + 1).padStart(3, '0')
+  const ship_number = `SH-${dateStr}-${num}`
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('shipments')
+    .insert({ ...form, ship_number, created_by: user?.id ?? null })
+    .select().single()
+  if (error) throw error
+  const filled = items.filter(it => it.product_name.trim())
+  if (filled.length > 0) {
+    const rows = filled.map((it, i) => ({
+      shipment_id: data.id,
+      product_name: it.product_name.trim(),
+      quantity: it.quantity || null,
+      unit: it.unit || null,
+      item_order: i + 1,
+    }))
+    const { error: ie } = await supabase.from('shipment_items').insert(rows)
+    if (ie) throw ie
+  }
+  return data
+}
+
+export async function deleteShipment(id) {
+  const { error } = await supabase.from('shipments').delete().eq('id', id)
+  if (error) throw error
+}

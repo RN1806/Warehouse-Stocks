@@ -4,22 +4,23 @@ import AuthPage from './pages/AuthPage'
 import StockPage from './pages/StockPage'
 import ProductsPage from './pages/ProductsPage'
 import NewDeliveryPage from './pages/NewDeliveryPage'
-import { DeliveriesPage, DeliveryDetailPage, CustomersPage, ProfilePage } from './pages/Pages'
+import MorePage from './pages/MorePage'
+import { DeliveriesPage, DeliveryDetailPage, ProfilePage } from './pages/Pages'
 import './index.css'
 
 const TABS = [
   { id: 'deliveries', label: 'Forms',     icon: '📋' },
   { id: 'stock',      label: 'Stock',     icon: '📦' },
-  { id: 'customers',  label: 'Customers', icon: '🏢' },
   { id: 'products',   label: 'Products',  icon: '🧴' },
+  { id: 'more',       label: 'More',      icon: '☰' },
   { id: 'profile',    label: 'Profile',   icon: '👤' },
 ]
 
 const TITLES = {
   deliveries: 'Sample Delivery',
   stock:      'Stock Manager',
-  customers:  'Customer Book',
   products:   'Products',
+  more:       'More',
   profile:    'My Profile',
 }
 
@@ -61,8 +62,8 @@ function Shell() {
         {view === 'detail' && <DeliveryDetailPage id={detailId} onBack={() => setView('list')} />}
         {view === 'list' && tab === 'deliveries' && <DeliveriesPage onNew={() => setView('new')} onView={id => { setDetailId(id); setView('detail') }} />}
         {view === 'list' && tab === 'stock'      && <StockPage />}
-        {view === 'list' && tab === 'customers'  && <CustomersPage />}
         {view === 'list' && tab === 'products'   && <ProductsPage />}
+        {view === 'list' && tab === 'more'       && <MorePage />}
         {view === 'list' && tab === 'profile'    && <ProfilePage />}
       </main>
 
