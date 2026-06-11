@@ -280,3 +280,22 @@ export async function deleteShipment(id) {
   const { error } = await supabase.from('shipments').delete().eq('id', id)
   if (error) throw error
 }
+
+// ── Stock IN report ───────────────────────────────────────
+// Fetches confirmed stock-IN entries between two dates (inclusive),
+// joined to their product so we can group by industry.
+export async function fetchStockInReport(fromDate, toDate) {
+  // toDate inclusive: add a day boundary
+  const start = `${fromDate}T00:00:00`
+  const end = `${toDate}T23:59:59`
+  const { data, error } = await supabase
+    .from('stock_updates')
+    .select('*, products(name, industry, supplier_name, suppliers(name))')
+    .eq('action', 'in')
+    .eq('status', 'confirmed')
+    .gte('created_at', start)
+    .lte('created_at', end)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data || []
+}
