@@ -59,7 +59,8 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
     e.preventDefault()
     if (form.delivery_type === 'customer') {
       if (!form.customer_name.trim()) { setErr('Please select or enter a customer.'); return }
-      if (!form.customer_email.trim()) { setErr('Company email is required.'); return }
+      if (!form.customer_address.trim()) { setErr('Address is required.'); return }
+      if (!form.contact_phone.trim()) { setErr('Phone number is required.'); return }
     }
     const filled = items.filter(it => it.product_name.trim())
     if (filled.length === 0) { setErr('Please add at least one product.'); return }
@@ -142,14 +143,9 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
                 placeholder="Company name" className={inputCls} required />
             </div>
             <div>
-              <label className={labelCls}>Company email * <span className="text-red-500 text-xs">required</span></label>
-              <input type="email" value={form.customer_email} onChange={e => setF('customer_email', e.target.value)}
-                placeholder="contact@company.com" className={inputCls} required />
-            </div>
-            <div>
-              <label className={labelCls}>Address</label>
+              <label className={labelCls}>Address *</label>
               <textarea value={form.customer_address} onChange={e => setF('customer_address', e.target.value)}
-                placeholder="Address" rows={2} className={inputCls + ' resize-none'} />
+                placeholder="Address" rows={2} className={inputCls + ' resize-none'} required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -158,9 +154,9 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
                   placeholder="e.g. K.Ploy" className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>Phone</label>
+                <label className={labelCls}>Phone *</label>
                 <input type="tel" value={form.contact_phone} onChange={e => setF('contact_phone', e.target.value)}
-                  placeholder="Phone" className={inputCls} />
+                  placeholder="Phone" className={inputCls} required />
               </div>
             </div>
             <div>
