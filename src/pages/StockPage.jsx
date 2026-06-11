@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { useProducts, useStockUpdates, submitStockUpdate, confirmStockUpdate, undoStockUpdate } from '../hooks/useWarehouse'
+import { useProducts, useStockUpdates, submitStockUpdate, confirmStockUpdate, undoStockUpdate, addProduct } from '../hooks/useWarehouse'
 import { StatusBadge, Spinner, Empty, SectionCard } from '../components/UI'
 import SupplierPicker from '../components/SupplierPicker'
 import PackagingInput from '../components/PackagingInput'
@@ -25,7 +25,7 @@ function timeAgo(str) {
 export default function StockPage() {
   const { profile, session } = useAuth()
   const isAdmin = profile?.role === 'admin'
-  const { products } = useProducts()
+  const { products, refetch: refetchProducts } = useProducts()
   const { updates, loading, refetch } = useStockUpdates()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ ...BLANK })
@@ -67,8 +67,30 @@ export default function StockPage() {
     if (!form.product_name.trim()) { setErr('Product name is required.'); return }
     setSaving(true); setErr('')
     try {
+      let productId = form.product_id
+
+      // If no product was selected from the dropdown, try to match the typed
+      // name to an existing product; if none, create a new product on the fly.
+      if (!productId) {
+        const typed = form.product_name.trim().toLowerCase()
+        const existing = products.find(p => p.name.trim().toLowerCase() === typed)
+        if (existing) {
+          productId = existing.id
+        } else {
+          const created = await addProduct({
+            name: form.product_name.trim(),
+            supplier_name: form.supplier_name || null,
+            current_qty: 0,
+            default_unit: form.total_unit || form.pack_size_unit || 'g',
+          })
+          productId = created.id
+          await refetchProducts()
+        }
+      }
+
       await submitStockUpdate({
         ...form,
+        product_id: productId,
         pack_size_amount: form.pack_size_amount ? parseFloat(form.pack_size_amount) : null,
         number_of_packs: form.number_of_packs ? parseInt(form.number_of_packs) : null,
         total_amount: form.total_amount ? parseFloat(form.total_amount) : null,

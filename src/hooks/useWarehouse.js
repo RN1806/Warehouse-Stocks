@@ -57,8 +57,9 @@ export function useProducts() {
 }
 
 export async function addProduct(payload) {
-  const { error } = await supabase.from('products').insert(payload)
+  const { data, error } = await supabase.from('products').insert(payload).select().single()
   if (error) throw error
+  return data
 }
 
 export async function deleteProduct(id) {
