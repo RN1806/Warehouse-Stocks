@@ -14,6 +14,7 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
 
   const [form, setForm] = useState({
     delivery_date: today,
+    delivery_type: 'customer',
     sales_rep_name: profile?.full_name ?? '',
     sales_rep_phone: profile?.phone ?? '',
     sales_rep_id: profile?.id ?? null,
@@ -56,8 +57,10 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.customer_name.trim()) { setErr('Please select or enter a customer.'); return }
-    if (!form.customer_email.trim()) { setErr('Company email is required.'); return }
+    if (form.delivery_type === 'customer') {
+      if (!form.customer_name.trim()) { setErr('Please select or enter a customer.'); return }
+      if (!form.customer_email.trim()) { setErr('Company email is required.'); return }
+    }
     const filled = items.filter(it => it.product_name.trim())
     if (filled.length === 0) { setErr('Please add at least one product.'); return }
     setSaving(true); setErr('')
@@ -87,6 +90,17 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
           {/* Delivery info */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivery Info</p>
+            <div>
+              <label className={labelCls}>Purpose *</label>
+              <div className="flex gap-2">
+                {[['customer','🏢 Customer'],['lab','🔬 Lab use']].map(([v,lbl]) => (
+                  <button key={v} type="button" onClick={() => setF('delivery_type', v)}
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${form.delivery_type===v ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-600'}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>Date *</label>
@@ -113,7 +127,8 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
             </div>
           </div>
 
-          {/* Customer */}
+          {/* Customer (only for customer deliveries) */}
+          {form.delivery_type === 'customer' ? (
           <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</p>
@@ -156,6 +171,26 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
               </select>
             </div>
           </div>
+          ) : (
+          <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">🔬 Lab Use</p>
+            <div>
+              <label className={labelCls}>Lab / Department</label>
+              <input type="text" value={form.customer_name} onChange={e => setF('customer_name', e.target.value)}
+                placeholder="e.g. R&D Lab, QC Lab" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Requested by</label>
+              <input type="text" value={form.contact_person} onChange={e => setF('contact_person', e.target.value)}
+                placeholder="Person requesting the sample" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Purpose / Notes</label>
+              <textarea value={form.customer_address} onChange={e => setF('customer_address', e.target.value)}
+                placeholder="What is the sample being used for?" rows={2} className={inputCls + ' resize-none'} />
+            </div>
+          </div>
+          )}
 
           {/* Products */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
