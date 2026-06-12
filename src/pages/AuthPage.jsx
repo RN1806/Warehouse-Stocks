@@ -16,8 +16,8 @@ export default function AuthPage() {
     e.preventDefault()
     setErr(''); setInfo(''); setLoading(true)
     try {
-      if (!email.endsWith('@kawainter.com')) {
-        throw new Error('Only @kawainter.com email addresses are allowed.')
+      if (!email.endsWith('@kawainter.com') && !email.endsWith('@spluschemicals.com')) {
+        throw new Error('Only @kawainter.com or @spluschemicals.com email addresses are allowed.')
       }
       if (mode === 'reset') {
         await resetPassword(email)
