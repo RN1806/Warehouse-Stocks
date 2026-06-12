@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { useProducts, createDelivery } from '../hooks/useWarehouse'
+import { useProducts, createDelivery, visibleProductsFor } from '../hooks/useWarehouse'
 import { INDUSTRIES, INDUSTRY_ICONS, AMOUNT_UNITS } from '../lib/constants'
 import CustomerPickerModal from '../components/CustomerPickerModal'
 import PackagingInput from '../components/PackagingInput'
@@ -9,7 +9,8 @@ const EMPTY_ITEM = { product_name: '', amount: '', unit: 'g', packaging_descript
 
 export default function NewDeliveryPage({ onSaved, onBack }) {
   const { profile } = useAuth()
-  const { products } = useProducts()
+  const { products: allProducts } = useProducts()
+  const products = visibleProductsFor(allProducts, profile)
   const today = new Date().toISOString().slice(0, 10)
 
   const [form, setForm] = useState({

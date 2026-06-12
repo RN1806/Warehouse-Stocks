@@ -320,3 +320,16 @@ export async function fetchStockInReport(fromDate, toDate) {
   if (error) throw error
   return data || []
 }
+
+// ── Industry-based product visibility for pickers ─────────
+// Regular sales staff may only pick products within their assigned industries.
+// Sales managers and admins may pick any product (cross-industry).
+export function visibleProductsFor(products, profile) {
+  if (!profile) return []
+  const isAdmin = profile.role === 'admin'
+  const isManager = profile.is_sales_manager === true
+  if (isAdmin || isManager) return products
+  const mine = profile.industries || []
+  if (mine.length === 0) return products  // no industries assigned → don't block
+  return products.filter(p => p.industry && mine.includes(p.industry))
+}

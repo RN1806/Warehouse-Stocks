@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { useProducts, useStockUpdates, submitStockUpdate, confirmStockUpdate, undoStockUpdate, addProduct } from '../hooks/useWarehouse'
+import { useProducts, useStockUpdates, submitStockUpdate, confirmStockUpdate, undoStockUpdate, addProduct, visibleProductsFor } from '../hooks/useWarehouse'
 import { StatusBadge, Spinner, Empty, SectionCard } from '../components/UI'
 import SupplierPicker from '../components/SupplierPicker'
 import PackagingInput from '../components/PackagingInput'
@@ -25,7 +25,8 @@ function timeAgo(str) {
 export default function StockPage() {
   const { profile, session } = useAuth()
   const isAdmin = profile?.role === 'admin'
-  const { products, refetch: refetchProducts } = useProducts()
+  const { products: allProducts, refetch: refetchProducts } = useProducts()
+  const products = visibleProductsFor(allProducts, profile)
   const { updates, loading, refetch } = useStockUpdates()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ ...BLANK })
@@ -88,9 +89,12 @@ export default function StockPage() {
         }
       }
 
+      const noExpiry = form.expiry_date === 'No expiry'
       await submitStockUpdate({
         ...form,
         product_id: productId,
+        expiry_date: noExpiry ? null : (form.expiry_date || null),
+        no_expiry: noExpiry,
         pack_size_amount: form.pack_size_amount ? parseFloat(form.pack_size_amount) : null,
         number_of_packs: form.number_of_packs ? parseInt(form.number_of_packs) : null,
         total_amount: form.total_amount ? parseFloat(form.total_amount) : null,
@@ -177,7 +181,7 @@ export default function StockPage() {
                   </span>
                   {u.total_amount && <span>{u.total_amount} {u.total_unit}</span>}
                   {u.lot_number && <span>Lot: {u.lot_number}</span>}
-                  {u.expiry_date && <span>Exp: {u.expiry_date}</span>}
+                  {u.no_expiry ? <span>Exp: No expiry</span> : u.expiry_date && <span>Exp: {u.expiry_date}</span>}
                   {u.storage_location && <span>📍 {u.storage_location}</span>}
                   <span>{timeAgo(u.created_at)}</span>
                 </div>
@@ -259,9 +263,17 @@ export default function StockPage() {
 
               {/* Lot number */}
               <div>
-                <label className={labelCls}>Lot number</label>
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>Lot number</label>
+                  <button type="button"
+                    onClick={() => setF('lot_number', form.lot_number === 'No lot' ? '' : 'No lot')}
+                    className={`text-xs mb-1 px-2 py-0.5 rounded-full ${form.lot_number === 'No lot' ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-500'}`}>
+                    No lot
+                  </button>
+                </div>
                 <input type="text" value={form.lot_number} onChange={e => setF('lot_number', e.target.value)}
-                  placeholder="e.g. LOT-2024-001" className={inputCls} />
+                  disabled={form.lot_number === 'No lot'}
+                  placeholder="e.g. LOT-2024-001" className={inputCls + (form.lot_number === 'No lot' ? ' bg-gray-100 text-gray-400' : '')} />
               </div>
 
               {/* Pack size */}
@@ -291,9 +303,21 @@ export default function StockPage() {
 
               {/* Expiry date */}
               <div>
-                <label className={labelCls}>Expiry date</label>
-                <input type="date" value={form.expiry_date} onChange={e => setF('expiry_date', e.target.value)}
-                  className={inputCls} />
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>Expiry date</label>
+                  <button type="button"
+                    onClick={() => setF('expiry_date', form.expiry_date === 'No expiry' ? '' : 'No expiry')}
+                    className={`text-xs mb-1 px-2 py-0.5 rounded-full ${form.expiry_date === 'No expiry' ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-500'}`}>
+                    No expiry
+                  </button>
+                </div>
+                {form.expiry_date === 'No expiry' ? (
+                  <input type="text" value="No expiry" disabled
+                    className={inputCls + ' bg-gray-100 text-gray-400'} />
+                ) : (
+                  <input type="date" value={form.expiry_date} onChange={e => setF('expiry_date', e.target.value)}
+                    className={inputCls} />
+                )}
               </div>
 
               {/* Storage location */}
