@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useDeliveries, getDelivery, updateDeliveryStatus, deleteDelivery, useCustomers, saveCustomer, deleteCustomer } from '../hooks/useWarehouse'
+import { useDeliveries, getDelivery, updateDeliveryStatus, deleteDelivery, useCustomers, saveCustomer, deleteCustomer, updateMyProfile } from '../hooks/useWarehouse'
 import { useAuth } from '../lib/AuthContext'
 import { StatusBadge, Avatar, Spinner, Empty, FieldRow, SectionCard } from '../components/UI'
 import { INDUSTRIES, INDUSTRY_ICONS } from '../lib/constants'
@@ -327,9 +327,64 @@ export function CustomersPage() {
 
 // ── Profile page ──────────────────────────────────────────
 export function ProfilePage() {
-  const { profile, session, signOut } = useAuth()
+  const { profile, session, signOut, refreshProfile } = useAuth()
   const name = profile?.full_name ?? session?.user?.email ?? 'User'
   const email = profile?.email ?? session?.user?.email ?? ''
+
+  const [editing, setEditing] = useState(false)
+  const [fName, setFName] = useState(profile?.full_name ?? '')
+  const [fPhone, setFPhone] = useState(profile?.phone ?? '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  function startEdit() {
+    setFName(profile?.full_name ?? '')
+    setFPhone(profile?.phone ?? '')
+    setErr('')
+    setEditing(true)
+  }
+
+  async function handleSave() {
+    if (!fName.trim()) { setErr('Name is required.'); return }
+    setSaving(true); setErr('')
+    try {
+      await updateMyProfile(session.user.id, { full_name: fName, phone: fPhone })
+      await refreshProfile()
+      setEditing(false)
+    } catch (e) { setErr(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const inputCls = "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-700"
+
+  if (editing) {
+    return (
+      <div className="px-4 pb-24 pt-4">
+        <div className="card p-5 space-y-4">
+          <h2 className="text-base font-semibold text-slate-900 display">Edit profile</h2>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Full name *</label>
+            <input value={fName} onChange={e => setFName(e.target.value)} className={inputCls} placeholder="Your name" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Phone</label>
+            <input value={fPhone} onChange={e => setFPhone(e.target.value)} className={inputCls} placeholder="Phone number" type="tel" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Email</label>
+            <input value={email} disabled className={inputCls + ' bg-slate-100 text-slate-400'} />
+            <p className="text-[11px] text-slate-400 mt-1">Email is your login and can't be changed here.</p>
+          </div>
+          {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => setEditing(false)} className="flex-1 border border-gray-200 rounded-xl py-3 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary rounded-xl py-3 text-sm">{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-4 pb-24 pt-4">
       <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4 mb-4">
@@ -340,6 +395,7 @@ export function ProfilePage() {
           {profile?.phone && <p className="text-sm text-gray-400">{profile.phone}</p>}
           <span className="inline-block mt-1 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full capitalize">{profile?.role ?? 'staff'}</span>
         </div>
+        <button onClick={startEdit} className="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg font-medium self-start">Edit</button>
       </div>
       <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50 mb-4">
         {[['Full name',name],['Email',email],['Phone',profile?.phone??'—'],['Role',profile?.is_lab ? 'Lab' : (profile?.is_sales_manager ? 'Sales Manager' : (profile?.role??'staff'))],['Industries',(profile?.is_lab ? 'All (Lab)' : (profile?.industries?.length ? profile.industries.join(', ') : 'All / none assigned'))]].map(([l,v]) => (

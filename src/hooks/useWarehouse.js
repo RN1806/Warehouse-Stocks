@@ -334,3 +334,12 @@ export function visibleProductsFor(products, profile) {
   if (mine.length === 0) return products  // no industries assigned → don't block
   return products.filter(p => p.industry && mine.includes(p.industry))
 }
+
+// ── Update own profile (name + phone) ─────────────────────
+export async function updateMyProfile(userId, { full_name, phone }) {
+  const { error } = await supabase
+    .from('sales_reps')
+    .update({ full_name: full_name.trim(), phone: phone.trim() || null })
+    .eq('id', userId)
+  if (error) throw error
+}

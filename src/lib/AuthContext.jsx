@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ session, profile, signUp, signIn, signOut, resetPassword, refreshProfile: () => session && fetchProfile(session.user.id) }}>
       {children}
     </AuthContext.Provider>
   )
