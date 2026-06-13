@@ -342,7 +342,7 @@ export function ProfilePage() {
         </div>
       </div>
       <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50 mb-4">
-        {[['Full name',name],['Email',email],['Phone',profile?.phone??'—'],['Role',profile?.role??'staff'],['Industries',(profile?.industries?.length ? profile.industries.join(', ') : 'All / none assigned')]].map(([l,v]) => (
+        {[['Full name',name],['Email',email],['Phone',profile?.phone??'—'],['Role',profile?.is_lab ? 'Lab' : (profile?.is_sales_manager ? 'Sales Manager' : (profile?.role??'staff'))],['Industries',(profile?.is_lab ? 'All (Lab)' : (profile?.industries?.length ? profile.industries.join(', ') : 'All / none assigned'))]].map(([l,v]) => (
           <div key={l} className="flex justify-between px-4 py-3.5">
             <span className="text-sm text-gray-500">{l}</span>
             <span className="text-sm font-medium text-gray-800 truncate max-w-[180px] capitalize">{v}</span>

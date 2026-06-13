@@ -328,7 +328,8 @@ export function visibleProductsFor(products, profile) {
   if (!profile) return []
   const isAdmin = profile.role === 'admin'
   const isManager = profile.is_sales_manager === true
-  if (isAdmin || isManager) return products
+  const isLab = profile.is_lab === true
+  if (isAdmin || isManager || isLab) return products
   const mine = profile.industries || []
   if (mine.length === 0) return products  // no industries assigned → don't block
   return products.filter(p => p.industry && mine.includes(p.industry))
