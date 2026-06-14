@@ -343,3 +343,24 @@ export async function updateMyProfile(userId, { full_name, phone }) {
     .eq('id', userId)
   if (error) throw error
 }
+
+// ── Staff directory (admin) ───────────────────────────────
+export function useStaff() {
+  const [staff, setStaff] = useState([])
+  const [loading, setLoading] = useState(true)
+  const fetch = useCallback(async () => {
+    const { data } = await supabase
+      .from('sales_reps')
+      .select('*')
+      .order('full_name')
+    if (data) setStaff(data)
+    setLoading(false)
+  }, [])
+  useEffect(() => { fetch() }, [fetch])
+  return { staff, loading, refetch: fetch }
+}
+
+export async function updateStaffMember(id, fields) {
+  const { error } = await supabase.from('sales_reps').update(fields).eq('id', id)
+  if (error) throw error
+}
