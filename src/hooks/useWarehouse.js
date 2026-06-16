@@ -325,14 +325,10 @@ export async function fetchStockInReport(fromDate, toDate) {
 // Regular sales staff may only pick products within their assigned industries.
 // Sales managers and admins may pick any product (cross-industry).
 export function visibleProductsFor(products, profile) {
-  if (!profile) return []
-  const isAdmin = profile.role === 'admin'
-  const isManager = profile.is_sales_manager === true
-  const isLab = profile.is_lab === true
-  if (isAdmin || isManager || isLab) return products
-  const mine = profile.industries || []
-  if (mine.length === 0) return products  // no industries assigned → don't block
-  return products.filter(p => p.industry && mine.includes(p.industry))
+  // Everyone can now SEE/pick any product. Cross-owner products trigger an
+  // approval request at selection time (handled in the form), rather than
+  // being hidden here. This replaces the old manager-only restriction.
+  return products
 }
 
 // ── Update own profile (name + phone) ─────────────────────
@@ -363,4 +359,82 @@ export function useStaff() {
 export async function updateStaffMember(id, fields) {
   const { error } = await supabase.from('sales_reps').update(fields).eq('id', id)
   if (error) throw error
+}
+
+// ── Sample request / ownership workflow ───────────────────
+// Load the brand->owner map once.
+export function useBrandOwners() {
+  const [owners, setOwners] = useState([])
+  useEffect(() => {
+    supabase.from('brand_owners').select('keyword, owner_email').then(({ data }) => {
+      if (data) setOwners(data)
+    })
+  }, [])
+  return owners
+}
+
+// Given a product name + the brand-owner list, return the set of owner emails
+// that own a brand keyword appearing in the product name.
+export function ownersForProduct(productName, brandOwners) {
+  if (!productName) return []
+  const lower = productName.toLowerCase()
+  const found = brandOwners
+    .filter(bo => bo.keyword && lower.includes(bo.keyword.toLowerCase()))
+    .map(bo => bo.owner_email.toLowerCase())
+  return [...new Set(found)]
+}
+
+// Decide if a user needs approval to use a product.
+// Returns { needsApproval: bool, owners: [emails] }
+// No owner found  -> free to use (unowned)
+// User IS an owner -> free
+// Otherwise        -> needs approval from owners
+export function approvalCheck(productName, brandOwners, myEmail) {
+  const owners = ownersForProduct(productName, brandOwners)
+  if (owners.length === 0) return { needsApproval: false, owners: [] }
+  if (myEmail && owners.includes(myEmail.toLowerCase())) return { needsApproval: false, owners }
+  return { needsApproval: true, owners }
+}
+
+export async function createSampleRequest({ productName, ownerEmail, note }) {
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: me } = await supabase.from('sales_reps').select('email').eq('id', user.id).single()
+  const { error } = await supabase.from('sample_requests').insert({
+    product_name: productName,
+    requester_id: user.id,
+    requester_email: me?.email,
+    owner_email: ownerEmail,
+    note: note || null,
+  })
+  if (error) throw error
+}
+
+// Requests addressed to me (owner inbox)
+export function useIncomingRequests() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const fetch = useCallback(async () => {
+    const { data } = await supabase.from('sample_requests')
+      .select('*').order('created_at', { ascending: false })
+    if (data) setRequests(data)
+    setLoading(false)
+  }, [])
+  useEffect(() => { fetch() }, [fetch])
+  return { requests, loading, refetch: fetch }
+}
+
+export async function decideRequest(id, status) {
+  const { error } = await supabase.from('sample_requests')
+    .update({ status, decided_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// Has THIS user been approved for THIS product already?
+export function hasApproval(productName, requests, myId) {
+  return requests.some(r =>
+    r.requester_id === myId &&
+    r.status === 'approved' &&
+    r.product_name === productName
+  )
 }

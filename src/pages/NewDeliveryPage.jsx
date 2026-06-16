@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { useProducts, createDelivery, visibleProductsFor } from '../hooks/useWarehouse'
+import { useProducts, createDelivery, visibleProductsFor, useBrandOwners, approvalCheck, createSampleRequest, useIncomingRequests, hasApproval } from '../hooks/useWarehouse'
 import { INDUSTRIES, INDUSTRY_ICONS, AMOUNT_UNITS } from '../lib/constants'
 import CustomerPickerModal from '../components/CustomerPickerModal'
 import PackagingInput from '../components/PackagingInput'
@@ -11,6 +11,9 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
   const { profile } = useAuth()
   const { products: allProducts } = useProducts()
   const products = visibleProductsFor(allProducts, profile)
+  const brandOwners = useBrandOwners()
+  const { requests, refetch: refetchReq } = useIncomingRequests()
+  const [requestingIdx, setRequestingIdx] = useState(null)
   const today = new Date().toISOString().slice(0, 10)
 
   const [form, setForm] = useState({
@@ -209,6 +212,21 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
                   <datalist id={`prod-${i}`}>
                     {products.map(p => <option key={p.id} value={p.name} />)}
                   </datalist>
+                  <ProductApprovalNotice
+                    productName={item.product_name}
+                    brandOwners={brandOwners}
+                    profile={profile}
+                    requests={requests}
+                    busy={requestingIdx === i}
+                    onRequest={async (ownerEmail) => {
+                      setRequestingIdx(i)
+                      try {
+                        await createSampleRequest({ productName: item.product_name, ownerEmail })
+                        await refetchReq()
+                      } catch (e) { alert(e.message) }
+                      finally { setRequestingIdx(null) }
+                    }}
+                  />
                 </div>
                 <div className="mb-2">
                   <PackagingInput
@@ -260,5 +278,44 @@ export default function NewDeliveryPage({ onSaved, onBack }) {
         <CustomerPickerModal onSelect={selectCustomer} onClose={() => setShowCustomerPicker(false)} />
       )}
     </>
+  )
+}
+
+// Shows ownership status for a typed product: who owns it, whether a request
+// is needed, pending, approved, or rejected.
+function ProductApprovalNotice({ productName, brandOwners, profile, requests, busy, onRequest }) {
+  if (!productName || !productName.trim() || brandOwners.length === 0) return null
+  const myEmail = (profile?.email || '').toLowerCase()
+  const { needsApproval, owners } = approvalCheck(productName, brandOwners, myEmail)
+  if (!needsApproval) return null  // unowned or I'm the owner → no notice
+
+  // existing request by me for this product?
+  const myReq = requests.find(r =>
+    r.requester_id === profile?.id && r.product_name === productName
+  )
+
+  if (myReq?.status === 'approved')
+    return <p className="text-[11px] text-green-700 bg-green-50 rounded-lg px-2 py-1 mt-1">✓ Approved — you can use this product.</p>
+  if (myReq?.status === 'pending')
+    return <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-1">⏳ Request pending approval from owner.</p>
+  if (myReq?.status === 'rejected')
+    return <p className="text-[11px] text-red-700 bg-red-50 rounded-lg px-2 py-1 mt-1">✕ Request rejected by owner.</p>
+
+  // no request yet → offer to request
+  return (
+    <div className="mt-1 bg-blue-50 rounded-lg px-2 py-1.5">
+      <p className="text-[11px] text-blue-800">
+        This product belongs to another sales owner. Request permission to use it.
+      </p>
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {owners.map(em => (
+          <button key={em} type="button" disabled={busy}
+            onClick={() => onRequest(em)}
+            className="text-[11px] bg-blue-700 text-white px-2 py-1 rounded-md font-medium disabled:opacity-50">
+            {busy ? 'Sending…' : `Request from ${em.split('@')[0]}`}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
