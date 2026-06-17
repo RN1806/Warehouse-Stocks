@@ -5,20 +5,24 @@ import ReportsPage from './ReportsPage'
 import StaffPage from './StaffPage'
 import RequestsPage from './RequestsPage'
 import SampleTrackingPage from './SampleTrackingPage'
+import NotificationsPage from './NotificationsPage'
 import { useAuth } from '../lib/AuthContext'
-import { useIncomingRequests } from '../hooks/useWarehouse'
+import { useIncomingRequests, useNotifications } from '../hooks/useWarehouse'
 
 export default function MorePage() {
   const { profile } = useAuth()
   const isAdmin = profile?.role === 'admin'
   const [sub, setSub] = useState(null)
   const { requests } = useIncomingRequests()
+  const { notifications } = useNotifications()
+  const unreadAlerts = notifications.filter(n => !n.read).length
   const myEmail = (profile?.email || '').toLowerCase()
   const pendingForMe = requests.filter(r =>
     (r.owner_email || '').toLowerCase() === myEmail && r.status === 'pending'
   ).length
 
   const MENU = [
+    { id: 'alerts',    label: 'Alerts', icon: '🔔', desc: 'Low stock & other notifications', badge: unreadAlerts },
     { id: 'requests',  label: 'Sample Requests', icon: '📩', desc: 'Approve product requests & track yours', badge: pendingForMe },
     { id: 'customers', label: 'Customer Book', icon: '🏢', desc: 'Manage customer address book' },
     { id: 'shipments', label: 'Shipments',     icon: '✈️', desc: 'Abroad orders, tracking & cost' },
@@ -27,6 +31,7 @@ export default function MorePage() {
     ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', desc: 'View & edit staff roles and industries' }] : []),
   ]
 
+  if (sub === 'alerts')    return <SubWrap onBack={() => setSub(null)} title="Alerts"><NotificationsPage /></SubWrap>
   if (sub === 'requests')  return <SubWrap onBack={() => setSub(null)} title="Sample Requests"><RequestsPage /></SubWrap>
   if (sub === 'customers') return <SubWrap onBack={() => setSub(null)} title="Customer Book"><CustomersPage /></SubWrap>
   if (sub === 'shipments') return <SubWrap onBack={() => setSub(null)} title="Shipments"><ShipmentsPage /></SubWrap>

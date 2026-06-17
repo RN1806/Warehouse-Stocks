@@ -226,8 +226,110 @@ export async function createDelivery(form, items) {
 }
 
 export async function updateDeliveryStatus(id, status) {
+  // Fetch current status + items so we can deduct/restore stock on transitions
+  const { data: del } = await supabase
+    .from('deliveries')
+    .select('status, delivery_items(*)')
+    .eq('id', id).single()
+  const prevStatus = del?.status
+
+  // Apply the status change first
   const { error } = await supabase.from('deliveries').update({ status }).eq('id', id)
   if (error) throw error
+
+  if (!del) return
+
+  const leavingDraft = prevStatus === 'Draft' && status !== 'Draft'
+  const returningToDraft = prevStatus !== 'Draft' && status === 'Draft'
+
+  // Only act on the Draft boundary; other transitions don't change stock.
+  if (!leavingDraft && !returningToDraft) return
+
+  for (const it of (del.delivery_items || [])) {
+    const name = (it.product_name || '').trim()
+    if (!name) continue
+    // Match the item to a product by name (case-insensitive)
+    const { data: prod } = await supabase
+      .from('products')
+      .select('id, name, current_qty, pack_size_amount, industry')
+      .ilike('name', name)
+      .limit(1).maybeSingle()
+    if (!prod) continue
+
+    const amt = Number(it.amount) || 0
+    if (leavingDraft) {
+      const newQty = Math.max(0, (prod.current_qty || 0) - amt)
+      await supabase.from('products').update({ current_qty: newQty }).eq('id', prod.id)
+      // Low-stock check: below the product's pack size
+      const packSize = Number(prod.pack_size_amount) || 0
+      if (packSize > 0 && newQty < packSize) {
+        await notifyLowStock(prod, newQty)
+      }
+    } else if (returningToDraft) {
+      // Add the amount back
+      const newQty = (prod.current_qty || 0) + amt
+      await supabase.from('products').update({ current_qty: newQty }).eq('id', prod.id)
+    }
+  }
+}
+
+// Create low-stock notifications for all sales in the product's industry.
+async function notifyLowStock(product, newQty) {
+  if (!product.industry) return
+  // Sales whose industries array contains this product's industry
+  const { data: reps } = await supabase
+    .from('sales_reps')
+    .select('email, industries')
+    .contains('industries', [product.industry])
+  if (!reps || reps.length === 0) return
+
+  const rows = reps
+    .filter(r => r.email)
+    .map(r => ({
+      recipient_email: r.email,
+      type: 'low_stock',
+      title: `Low sample stock: ${product.name}`,
+      body: `Only ${newQty} left (below pack size). Industry: ${product.industry}.`,
+      product_id: product.id,
+    }))
+  if (rows.length > 0) {
+    await supabase.from('notifications').insert(rows)
+  }
+}
+
+// ── Notifications (in-app alerts) ─────────────────────────
+export function useNotifications() {
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const fetch = useCallback(async () => {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (data) setNotifications(data)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    fetch()
+    const ch = supabase.channel('notif-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetch)
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [fetch])
+  return { notifications, loading, refetch: fetch }
+}
+
+export async function markNotificationRead(id) {
+  await supabase.from('notifications').update({ read: true }).eq('id', id)
+}
+
+export async function markAllNotificationsRead(emails) {
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: me } = await supabase.from('sales_reps').select('email').eq('id', user.id).single()
+  if (!me?.email) return
+  await supabase.from('notifications').update({ read: true })
+    .eq('recipient_email', me.email).eq('read', false)
 }
 
 export async function deleteDelivery(id) {
