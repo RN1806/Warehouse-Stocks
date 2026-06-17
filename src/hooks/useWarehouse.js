@@ -438,3 +438,70 @@ export function hasApproval(productName, requests, myId) {
     r.product_name === productName
   )
 }
+
+// ── Sample In/Out tracking report (by supplier) ───────────
+// In  = confirmed stock 'in' entries (stock received)
+// Out = products sent on delivery forms in the period
+export async function fetchSampleInOutReport(fromDate, toDate) {
+  const start = `${fromDate}T00:00:00`
+  const end = `${toDate}T23:59:59`
+
+  // IN: stock received
+  const { data: inData, error: inErr } = await supabase
+    .from('stock_updates')
+    .select('*, products(name, supplier_name, suppliers(name))')
+    .eq('action', 'in')
+    .eq('status', 'confirmed')
+    .gte('created_at', start).lte('created_at', end)
+    .order('created_at', { ascending: true })
+  if (inErr) throw inErr
+
+  // OUT: delivery items in the period (join parent delivery for date)
+  const { data: outData, error: outErr } = await supabase
+    .from('deliveries')
+    .select('delivery_date, created_at, form_number, delivery_items(*)')
+    .gte('delivery_date', fromDate).lte('delivery_date', toDate)
+    .order('delivery_date', { ascending: true })
+  if (outErr) throw outErr
+
+  // Build a product-name -> supplier lookup (for OUT items, which lack supplier)
+  const { data: prods } = await supabase
+    .from('products').select('name, supplier_name, suppliers(name)')
+  const supByName = {}
+  ;(prods || []).forEach(p => {
+    const sup = p.suppliers?.name || p.supplier_name || 'Unknown supplier'
+    if (p.name) supByName[p.name.trim().toLowerCase()] = sup
+  })
+
+  // Normalize IN movements
+  const movements = []
+  ;(inData || []).forEach(r => {
+    const sup = r.products?.suppliers?.name || r.products?.supplier_name || 'Unknown supplier'
+    movements.push({
+      direction: 'in',
+      date: r.created_at,
+      supplier: sup,
+      product: r.products?.name || r.product_name || '—',
+      amount: r.total_amount ?? null,
+      unit: r.total_unit || '',
+      ref: r.lot_number || '',
+    })
+  })
+  // Normalize OUT movements
+  ;(outData || []).forEach(d => {
+    ;(d.delivery_items || []).forEach(it => {
+      const sup = supByName[(it.product_name || '').trim().toLowerCase()] || 'Unknown supplier'
+      movements.push({
+        direction: 'out',
+        date: d.delivery_date || d.created_at,
+        supplier: sup,
+        product: it.product_name || '—',
+        amount: it.amount ?? null,
+        unit: it.unit || '',
+        ref: d.form_number || '',
+      })
+    })
+  })
+
+  return movements
+}

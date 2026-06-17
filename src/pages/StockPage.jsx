@@ -245,10 +245,12 @@ export default function StockPage() {
               {/* Product */}
               <div>
                 <label className={labelCls}>Product *</label>
-                <select value={form.product_id} onChange={e => handleProductSelect(e.target.value)} className={inputCls}>
-                  <option value="">Select product…</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <ProductSearchPicker
+                  products={products}
+                  supplierName={form.supplier_name}
+                  selectedId={form.product_id}
+                  onSelect={handleProductSelect}
+                />
                 {!form.product_id && (
                   <input type="text" value={form.product_name} onChange={e => setF('product_name', e.target.value)}
                     placeholder="Or type product name manually" className={inputCls + ' mt-2'} />
@@ -350,6 +352,71 @@ export default function StockPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Searchable product picker. If a supplier is selected, only that supplier's
+// products are shown. Includes a search box to filter by name.
+function ProductSearchPicker({ products, supplierName, selectedId, onSelect }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+
+  const supplierLc = (supplierName || '').trim().toLowerCase()
+
+  // Filter by supplier first (if one is chosen), then by search text
+  let list = products
+  if (supplierLc) {
+    list = list.filter(p => {
+      const sup = (p.suppliers?.name || p.supplier_name || '').toLowerCase()
+      return sup === supplierLc
+    })
+  }
+  if (query.trim()) {
+    const q = query.toLowerCase()
+    list = list.filter(p => p.name.toLowerCase().includes(q))
+  }
+  const shown = list.slice(0, 50)
+
+  const selected = products.find(p => p.id === selectedId)
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+        <input
+          type="text"
+          value={open ? query : (selected?.name || query)}
+          onChange={e => { setQuery(e.target.value); setOpen(true); if (selectedId) onSelect('') }}
+          onFocus={() => setOpen(true)}
+          placeholder={supplierLc ? `Search ${supplierName} products…` : 'Search product…'}
+          className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none focus:border-blue-700 bg-white"
+        />
+      </div>
+
+      {supplierLc && (
+        <p className="text-[11px] text-blue-700 mt-1">Showing only {supplierName} products ({list.length})</p>
+      )}
+
+      {open && (
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {shown.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-gray-400">No matching products</p>
+          ) : shown.map(p => (
+            <button key={p.id} type="button"
+              onClick={() => { onSelect(p.id); setOpen(false); setQuery('') }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 border-b border-gray-50 last:border-0">
+              <span className="text-gray-900">{p.name}</span>
+              {!supplierLc && (p.suppliers?.name || p.supplier_name) && (
+                <span className="text-[11px] text-gray-400 block">{p.suppliers?.name || p.supplier_name}</span>
+              )}
+            </button>
+          ))}
+          {list.length > 50 && (
+            <p className="px-3 py-1.5 text-[11px] text-gray-400">Showing first 50 — keep typing to narrow.</p>
+          )}
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import ShipmentsPage from './ShipmentsPage'
 import ReportsPage from './ReportsPage'
 import StaffPage from './StaffPage'
 import RequestsPage from './RequestsPage'
+import SampleTrackingPage from './SampleTrackingPage'
 import { useAuth } from '../lib/AuthContext'
 import { useIncomingRequests } from '../hooks/useWarehouse'
 
@@ -22,6 +23,7 @@ export default function MorePage() {
     { id: 'customers', label: 'Customer Book', icon: '🏢', desc: 'Manage customer address book' },
     { id: 'shipments', label: 'Shipments',     icon: '✈️', desc: 'Abroad orders, tracking & cost' },
     { id: 'reports',   label: 'Reports',       icon: '📊', desc: 'Stock import reports by industry' },
+    { id: 'tracking',  label: 'Sample Tracking', icon: '🔄', desc: 'In/out by supplier over a period' },
     ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', desc: 'View & edit staff roles and industries' }] : []),
   ]
 
@@ -29,6 +31,7 @@ export default function MorePage() {
   if (sub === 'customers') return <SubWrap onBack={() => setSub(null)} title="Customer Book"><CustomersPage /></SubWrap>
   if (sub === 'shipments') return <SubWrap onBack={() => setSub(null)} title="Shipments"><ShipmentsPage /></SubWrap>
   if (sub === 'reports')   return <SubWrap onBack={() => setSub(null)} title="Reports"><ReportsPage /></SubWrap>
+  if (sub === 'tracking')  return <SubWrap onBack={() => setSub(null)} title="Sample Tracking"><SampleTrackingPage /></SubWrap>
   if (sub === 'staff')     return <SubWrap onBack={() => setSub(null)} title="Staff Directory"><StaffPage /></SubWrap>
 
   return (
