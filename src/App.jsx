@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Component } from 'react'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import AuthPage from './pages/AuthPage'
 import StockPage from './pages/StockPage'
@@ -30,6 +30,22 @@ function buildSections(isAdmin) {
     ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', heavy: true }] : []),
     { id: 'profile',    label: 'My Profile',            icon: '👤', heavy: false },
   ]
+}
+
+// Catches a crash in any one section so it doesn't blank the whole app.
+class SectionBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="px-4 py-4 text-xs text-red-600 bg-red-50">
+          This section couldn't load. {String(this.state.error?.message || '')}
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 function Shell() {
@@ -136,7 +152,7 @@ function Shell() {
               </button>
               {isOpen && (
                 <div className="border-t border-gray-100">
-                  {renderBody(s.id)}
+                  <SectionBoundary>{renderBody(s.id)}</SectionBoundary>
                 </div>
               )}
             </section>

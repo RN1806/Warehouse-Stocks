@@ -521,9 +521,11 @@ export function useIncomingRequests() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const fetch = useCallback(async () => {
-    const { data } = await supabase.from('sample_requests')
-      .select('*').order('created_at', { ascending: false })
-    if (data) setRequests(data)
+    try {
+      const { data, error } = await supabase.from('sample_requests')
+        .select('*').order('created_at', { ascending: false })
+      setRequests(error ? [] : (data || []))
+    } catch { setRequests([]) }
     setLoading(false)
   }, [])
   useEffect(() => { fetch() }, [fetch])
