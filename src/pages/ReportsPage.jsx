@@ -55,6 +55,46 @@ export default function ReportsPage() {
     return parts.map(([u, v]) => `${v.toLocaleString()} ${u}`).join(', ')
   }
 
+  async function exportExcel() {
+    // Load SheetJS from CDN on demand
+    const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs')
+
+    // Sheet 1: Summary by industry
+    const summaryRows = industrySummary.map(s => ({
+      Industry: s.ind,
+      Entries: s.count,
+      Quantity: unitStr(s.units),
+    }))
+    summaryRows.push({ Industry: 'TOTAL', Entries: grandCount, Quantity: '' })
+
+    // Sheet 2: All detail rows
+    const detailRows = []
+    industries.forEach(([ind, items]) => {
+      items.forEach(it => {
+        detailRows.push({
+          Industry: ind,
+          Date: fmtDate(it.created_at),
+          Product: it.product_name || it.products?.name || '',
+          Supplier: it.supplier_name || it.products?.supplier_name || '',
+          Lot: it.lot_number || '',
+          Quantity: it.total_amount ?? '',
+          Unit: it.total_unit || '',
+          By: it.updated_by_name || '',
+        })
+      })
+    })
+
+    const wb = XLSX.utils.book_new()
+    const ws1 = XLSX.utils.json_to_sheet(summaryRows)
+    const ws2 = XLSX.utils.json_to_sheet(detailRows)
+    ws1['!cols'] = [{ wch: 24 }, { wch: 10 }, { wch: 28 }]
+    ws2['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 30 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 8 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, ws1, 'Summary')
+    XLSX.utils.book_append_sheet(wb, ws2, 'Detail')
+
+    XLSX.writeFile(wb, `stock-report_${from}_to_${to}.xlsx`)
+  }
+
   return (
     <>
       <div className="px-4 pb-24 pt-3">
@@ -79,6 +119,10 @@ export default function ReportsPage() {
             {rows && rows.length > 0 && (
               <button onClick={() => window.print()}
                 className="px-4 border border-gray-200 rounded-xl text-sm text-gray-600">🖨 Print</button>
+            )}
+            {rows && rows.length > 0 && (
+              <button onClick={exportExcel}
+                className="px-4 border border-green-200 bg-green-50 rounded-xl text-sm text-green-700 font-medium">⬇ Excel</button>
             )}
           </div>
           {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
