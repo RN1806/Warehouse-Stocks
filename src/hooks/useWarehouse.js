@@ -329,12 +329,15 @@ export async function markNotificationRead(id) {
   await supabase.from('notifications').update({ read: true }).eq('id', id)
 }
 
-export async function markAllNotificationsRead(emails) {
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: me } = await supabase.from('sales_reps').select('email').eq('id', user.id).single()
-  if (!me?.email) return
-  await supabase.from('notifications').update({ read: true })
-    .eq('recipient_email', me.email).eq('read', false)
+export async function markAllNotificationsRead() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: me } = await supabase.from('sales_reps').select('email').eq('id', user.id).single()
+    if (!me?.email) return
+    await supabase.from('notifications').update({ read: true })
+      .eq('recipient_email', me.email).eq('read', false)
+  } catch { /* ignore */ }
 }
 
 export async function deleteDelivery(id) {

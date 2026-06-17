@@ -14,33 +14,14 @@ import { DeliveriesPage, DeliveryDetailPage, ProfilePage, CustomersPage } from '
 import { useIncomingRequests, useNotifications } from './hooks/useWarehouse'
 import './index.css'
 
-// Every feature as a section on the one page.
-// `heavy: true` sections start collapsed so the page can load.
-function buildSections(isAdmin) {
-  return [
-    { id: 'deliveries', label: 'Sample Delivery Forms', icon: '📋', heavy: false },
-    { id: 'alerts',     label: 'Alerts',                icon: '🔔', heavy: false },
-    { id: 'requests',   label: 'Sample Requests',       icon: '📩', heavy: false },
-    { id: 'stock',      label: 'Stock Manager',         icon: '📦', heavy: true },
-    { id: 'products',   label: 'Products',              icon: '🧴', heavy: true },
-    { id: 'customers',  label: 'Customer Book',         icon: '🏢', heavy: true },
-    { id: 'shipments',  label: 'Shipments',             icon: '✈️', heavy: true },
-    { id: 'reports',    label: 'Reports',               icon: '📊', heavy: true },
-    { id: 'tracking',   label: 'Sample Tracking',       icon: '🔄', heavy: true },
-    ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', heavy: true }] : []),
-    { id: 'profile',    label: 'My Profile',            icon: '👤', heavy: false },
-  ]
-}
-
-// Catches a crash in any one section so it doesn't blank the whole app.
 class SectionBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
   static getDerivedStateFromError(error) { return { error } }
   render() {
     if (this.state.error) {
       return (
-        <div className="px-4 py-4 text-xs text-red-600 bg-red-50">
-          This section couldn't load. {String(this.state.error?.message || '')}
+        <div className="px-4 py-6 text-sm text-red-600 bg-red-50 m-4 rounded-xl">
+          This page couldn't load. {String(this.state.error?.message || '')}
         </div>
       )
     }
@@ -48,21 +29,37 @@ class SectionBoundary extends Component {
   }
 }
 
+function buildMenu(isAdmin) {
+  return [
+    { id: 'deliveries', label: 'Sample Delivery Forms', icon: '📋', desc: 'Create & track delivery forms' },
+    { id: 'alerts',     label: 'Alerts',                icon: '🔔', desc: 'Low stock & notifications' },
+    { id: 'requests',   label: 'Sample Requests',       icon: '📩', desc: 'Approve & track product requests' },
+    { id: 'stock',      label: 'Stock Manager',         icon: '📦', desc: 'Stock in / out / adjust' },
+    { id: 'products',   label: 'Products',              icon: '🧴', desc: 'Browse the catalogue' },
+    { id: 'customers',  label: 'Customer Book',         icon: '🏢', desc: 'Customer address book' },
+    { id: 'shipments',  label: 'Shipments',             icon: '✈️', desc: 'Abroad orders & tracking' },
+    { id: 'reports',    label: 'Reports',               icon: '📊', desc: 'Stock import by industry' },
+    { id: 'tracking',   label: 'Sample Tracking',       icon: '🔄', desc: 'In/out by supplier & product' },
+    ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', desc: 'Manage staff roles' }] : []),
+    { id: 'profile',    label: 'My Profile',            icon: '👤', desc: 'Your account & info' },
+  ]
+}
+
+const TITLES = {
+  deliveries: 'Sample Delivery', alerts: 'Alerts', requests: 'Sample Requests',
+  stock: 'Stock Manager', products: 'Products', customers: 'Customer Book',
+  shipments: 'Shipments', reports: 'Reports', tracking: 'Sample Tracking',
+  staff: 'Staff Directory', profile: 'My Profile',
+}
+
 function Shell() {
   const { session, profile } = useAuth()
-  const [view, setView]         = useState('list')   // list | new | detail
+  const [tab, setTab]           = useState(null)   // null = home menu
+  const [view, setView]         = useState('list') // list | new | detail
   const [detailId, setDetailId] = useState(null)
 
   const isAdmin = profile?.role === 'admin'
-  const sections = buildSections(isAdmin)
-
-  // Track which sections are open. Heavy ones start closed.
-  const [open, setOpen] = useState(() => {
-    const init = {}
-    sections.forEach(s => { init[s.id] = !s.heavy })
-    return init
-  })
-  const toggle = (id) => setOpen(o => ({ ...o, [id]: !o[id] }))
+  const menu = buildMenu(isAdmin)
 
   // Badges
   const { requests } = useIncomingRequests()
@@ -78,7 +75,7 @@ function Shell() {
   )
   if (!session) return <AuthPage />
 
-  // Delivery form flows open as full overlays (own back button)
+  // Delivery sub-flows (full screen, own back)
   if (view === 'new') return (
     <div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto">
       <NewDeliveryPage onSaved={() => setView('list')} onBack={() => setView('list')} />
@@ -108,14 +105,30 @@ function Shell() {
   }
 
   function badgeFor(id) {
-    if (id === 'alerts' && unreadAlerts > 0) return unreadAlerts
-    if (id === 'requests' && pendingReq > 0) return pendingReq
+    if (id === 'alerts') return unreadAlerts
+    if (id === 'requests') return pendingReq
     return 0
   }
 
+  // ── A feature is open: show it full-screen with a back header ──
+  if (tab) {
+    return (
+      <div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto">
+        <header className="brand-header px-4 pt-12 pb-4 sticky top-0 z-20 flex items-center gap-3">
+          <button onClick={() => setTab(null)}
+            className="w-9 h-9 rounded-xl bg-white/10 ring-1 ring-white/15 flex items-center justify-center text-white text-lg">←</button>
+          <h1 className="text-white text-lg font-bold display">{TITLES[tab]}</h1>
+        </header>
+        <main>
+          <SectionBoundary>{renderBody(tab)}</SectionBoundary>
+        </main>
+      </div>
+    )
+  }
+
+  // ── Home menu ──
   return (
-    <div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto pb-16">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto pb-8">
       <header className="brand-header px-5 pt-12 pb-6 sticky top-0 z-20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -134,28 +147,22 @@ function Shell() {
         </div>
       </header>
 
-      {/* All features stacked as collapsible sections */}
-      <main className="px-3 pt-3 space-y-3">
-        {sections.map(s => {
-          const isOpen = open[s.id]
-          const badge = badgeFor(s.id)
+      <main className="px-3 pt-3 space-y-2">
+        {menu.map(m => {
+          const badge = badgeFor(m.id)
           return (
-            <section key={s.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <button onClick={() => toggle(s.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
-                <span className="text-xl">{s.icon}</span>
-                <span className="flex-1 text-sm font-semibold text-slate-900">{s.label}</span>
-                {badge > 0 && (
-                  <span className="bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">{badge}</span>
-                )}
-                <span className={`text-slate-300 transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
-              </button>
-              {isOpen && (
-                <div className="border-t border-gray-100">
-                  <SectionBoundary>{renderBody(s.id)}</SectionBoundary>
-                </div>
+            <button key={m.id} onClick={() => setTab(m.id)}
+              className="w-full flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-4 text-left card-lift">
+              <span className="text-2xl">{m.icon}</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-slate-900">{m.label}</p>
+                <p className="text-xs text-gray-400">{m.desc}</p>
+              </div>
+              {badge > 0 && (
+                <span className="bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">{badge}</span>
               )}
-            </section>
+              <span className="text-gray-300 text-lg">›</span>
+            </button>
           )
         })}
       </main>
