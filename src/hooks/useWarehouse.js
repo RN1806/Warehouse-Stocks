@@ -619,3 +619,12 @@ export async function fetchSampleInOutReport(fromDate, toDate) {
 
   return movements
 }
+
+// ── Rename a product (admin only, enforced by RLS) ────────
+export async function renameProduct(productId, newName) {
+  const { error } = await supabase
+    .from('products')
+    .update({ name: newName.trim() })
+    .eq('id', productId)
+  if (error) throw error
+}

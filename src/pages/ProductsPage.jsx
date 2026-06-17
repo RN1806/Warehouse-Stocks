@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useProducts, addProduct, deleteProduct, addSupplier } from '../hooks/useWarehouse'
+import { useProducts, addProduct, deleteProduct, addSupplier, renameProduct } from '../hooks/useWarehouse'
 import { useSuppliers } from '../hooks/useWarehouse'
 import { INDUSTRIES, AMOUNT_UNITS, SUPPLIER_CATEGORIES } from '../lib/constants'
 import { Spinner, Empty } from '../components/UI'
@@ -25,6 +25,9 @@ export default function ProductsPage() {
   const [filterSupplier, setFilterSupplier] = useState('')
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [renaming, setRenaming] = useState(null)  // product being renamed
+  const [renameVal, setRenameVal] = useState('')
+  const [renameSaving, setRenameSaving] = useState(false)
   const [form, setForm] = useState({ name:'', supplier_name:'', industry:'', default_amount:'', default_unit:'g', current_qty:'0' })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -189,6 +192,10 @@ export default function ProductsPage() {
                               <p className="text-[10px] text-slate-400 mt-0.5">{p.default_unit || 'units'}</p>
                             </div>
                             {isAdmin && (
+                              <button onClick={() => { setRenaming(p); setRenameVal(p.name) }}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:bg-blue-50 hover:text-blue-500 flex-shrink-0" title="Rename">✎</button>
+                            )}
+                            {isAdmin && (
                               <button onClick={() => handleDelete(p.id)}
                                 className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 flex-shrink-0">✕</button>
                             )}
@@ -202,6 +209,33 @@ export default function ProductsPage() {
             </div>
           )
         })
+      )}
+
+      {/* Rename product modal (admin) */}
+      {renaming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setRenaming(null)} />
+          <div className="relative bg-white w-full max-w-sm rounded-2xl p-5 shadow-xl">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Rename product</h2>
+            <p className="text-xs text-gray-400 mb-4">Was: {renaming.name}</p>
+            <input value={renameVal} onChange={e => setRenameVal(e.target.value)}
+              className={inputCls} autoFocus />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setRenaming(null)}
+                className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-600">Cancel</button>
+              <button disabled={renameSaving || !renameVal.trim()}
+                onClick={async () => {
+                  setRenameSaving(true)
+                  try { await renameProduct(renaming.id, renameVal); await refetch(); setRenaming(null) }
+                  catch (e) { alert(e.message) }
+                  finally { setRenameSaving(false) }
+                }}
+                className="flex-1 bg-blue-900 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-60">
+                {renameSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add product modal */}
@@ -220,10 +254,12 @@ export default function ProductsPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <label className={labelCls}>Supplier</label>
-                  <button type="button" onClick={() => setShowNewSup(v => !v)}
-                    className="text-xs text-blue-700 hover:underline mb-1">
-                    {showNewSup ? 'Cancel' : '+ New supplier'}
-                  </button>
+                  {isAdmin && (
+                    <button type="button" onClick={() => setShowNewSup(v => !v)}
+                      className="text-xs text-blue-700 hover:underline mb-1">
+                      {showNewSup ? 'Cancel' : '+ New supplier'}
+                    </button>
+                  )}
                 </div>
                 {showNewSup ? (
                   <div className="space-y-2 bg-gray-50 rounded-xl p-3">

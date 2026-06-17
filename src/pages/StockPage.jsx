@@ -80,7 +80,7 @@ export default function StockPage() {
         } else {
           const created = await addProduct({
             name: form.product_name.trim(),
-            supplier_name: form.supplier_name || null,
+            supplier_name: (form.supplier_name && form.supplier_name !== 'No supplier') ? form.supplier_name : null,
             current_qty: 0,
             default_unit: form.total_unit || form.pack_size_unit || 'g',
           })
@@ -259,8 +259,19 @@ export default function StockPage() {
 
               {/* Supplier */}
               <div>
-                <label className={labelCls}>Supplier</label>
-                <SupplierPicker value={form.supplier_name} onChange={v => setF('supplier_name', v)} />
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>Supplier</label>
+                  <button type="button"
+                    onClick={() => setF('supplier_name', form.supplier_name === 'No supplier' ? '' : 'No supplier')}
+                    className={`text-xs mb-1 px-2 py-0.5 rounded-full ${form.supplier_name === 'No supplier' ? 'bg-blue-900 text-white' : 'border border-gray-200 text-gray-500'}`}>
+                    No supplier
+                  </button>
+                </div>
+                {form.supplier_name === 'No supplier' ? (
+                  <div className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-100 text-gray-400">No supplier</div>
+                ) : (
+                  <SupplierPicker value={form.supplier_name} onChange={v => setF('supplier_name', v)} />
+                )}
               </div>
 
               {/* Lot number */}
