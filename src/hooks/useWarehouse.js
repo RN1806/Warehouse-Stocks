@@ -302,12 +302,17 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const fetch = useCallback(async () => {
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100)
-    if (data) setNotifications(data)
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
+      if (error) { setNotifications([]) }
+      else setNotifications(data || [])
+    } catch {
+      setNotifications([])
+    }
     setLoading(false)
   }, [])
   useEffect(() => {
