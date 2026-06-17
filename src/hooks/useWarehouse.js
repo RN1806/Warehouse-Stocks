@@ -58,7 +58,7 @@ export function useProducts() {
 
   useEffect(() => {
     fetch()
-    const ch = supabase.channel('products-rt')
+    const ch = supabase.channel('products-rt-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetch)
       .subscribe()
     return () => supabase.removeChannel(ch)
@@ -95,7 +95,7 @@ export function useStockUpdates() {
 
   useEffect(() => {
     fetch()
-    const ch = supabase.channel('stock-rt')
+    const ch = supabase.channel('stock-rt-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_updates' }, fetch)
       .subscribe()
     return () => supabase.removeChannel(ch)
@@ -193,7 +193,7 @@ export function useDeliveries() {
   }, [])
   useEffect(() => {
     fetch()
-    const ch = supabase.channel('del-rt')
+    const ch = supabase.channel('del-rt-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, fetch)
       .subscribe()
     return () => supabase.removeChannel(ch)
@@ -317,7 +317,7 @@ export function useNotifications() {
   }, [])
   useEffect(() => {
     fetch()
-    const ch = supabase.channel('notif-rt')
+    const ch = supabase.channel('notif-rt-' + Math.random().toString(36).slice(2))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetch)
       .subscribe()
     return () => supabase.removeChannel(ch)
