@@ -7,6 +7,13 @@ function fmtDate(str) {
   return new Date(str).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function unitTotals(list) {
+  const u = {}
+  list.forEach(m => { const k = m.unit || 'unit'; u[k] = (u[k] || 0) + (Number(m.amount) || 0) })
+  const parts = Object.entries(u).filter(([, v]) => v > 0)
+  return parts.length ? parts.map(([k, v]) => `${v.toLocaleString()} ${k}`).join(', ') : '—'
+}
+
 export default function SampleTrackingPage() {
   const today = new Date().toISOString().slice(0, 10)
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -15,6 +22,8 @@ export default function SampleTrackingPage() {
   const [moves, setMoves] = useState(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
+  const [catFilter, setCatFilter] = useState('')
+  const [supFilter, setSupFilter] = useState('')
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-700 bg-white"
 
@@ -27,55 +36,57 @@ export default function SampleTrackingPage() {
     finally { setLoading(false) }
   }
 
-  // Group by supplier
+  const filtered = (moves || []).filter(m => {
+    if (catFilter && (m.category || '').toLowerCase() !== catFilter.toLowerCase()) return false
+    if (supFilter && !(m.supplier || '').toLowerCase().includes(supFilter.toLowerCase())) return false
+    return true
+  })
+
+  const categories = [...new Set((moves || []).map(m => m.category || 'Uncategorized'))].sort()
+
   const bySupplier = {}
-  ;(moves || []).forEach(m => {
+  filtered.forEach(m => {
     if (!bySupplier[m.supplier]) bySupplier[m.supplier] = { in: [], out: [] }
     bySupplier[m.supplier][m.direction].push(m)
   })
   const suppliers = Object.entries(bySupplier).sort(([a], [b]) => a.localeCompare(b))
 
-  function unitTotals(list) {
-    const u = {}
-    list.forEach(m => { const k = m.unit || 'unit'; u[k] = (u[k] || 0) + (Number(m.amount) || 0) })
-    const parts = Object.entries(u).filter(([, v]) => v > 0)
-    return parts.length ? parts.map(([k, v]) => `${v.toLocaleString()} ${k}`).join(', ') : '—'
-  }
+  const byProduct = {}
+  filtered.forEach(m => {
+    if (!byProduct[m.product]) byProduct[m.product] = { in: [], out: [], supplier: m.supplier }
+    byProduct[m.product][m.direction].push(m)
+  })
+  const productsArr = Object.entries(byProduct).sort(([a], [b]) => a.localeCompare(b))
 
-  const totalIn = (moves || []).filter(m => m.direction === 'in').length
-  const totalOut = (moves || []).filter(m => m.direction === 'out').length
+  const totalIn = filtered.filter(m => m.direction === 'in')
+  const totalOut = filtered.filter(m => m.direction === 'out')
 
   async function exportExcel() {
     const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs')
-
-    const summary = suppliers.map(([sup, g]) => ({
-      Supplier: sup,
-      'In (entries)': g.in.length,
-      'In (qty)': unitTotals(g.in),
-      'Out (entries)': g.out.length,
-      'Out (qty)': unitTotals(g.out),
+    const supplierSummary = suppliers.map(([sup, g]) => ({
+      Supplier: sup, 'In (entries)': g.in.length, 'In (qty)': unitTotals(g.in),
+      'Out (entries)': g.out.length, 'Out (qty)': unitTotals(g.out),
     }))
-    summary.push({ Supplier: 'TOTAL', 'In (entries)': totalIn, 'In (qty)': '', 'Out (entries)': totalOut, 'Out (qty)': '' })
-
-    const detail = (moves || []).slice().sort((a, b) =>
+    const productSummary = productsArr.map(([prod, g]) => ({
+      Product: prod, Supplier: g.supplier, 'In (entries)': g.in.length, 'In (qty)': unitTotals(g.in),
+      'Out (entries)': g.out.length, 'Out (qty)': unitTotals(g.out),
+    }))
+    const overall = [{
+      'Total movements': filtered.length, 'In (entries)': totalIn.length, 'In (qty)': unitTotals(totalIn),
+      'Out (entries)': totalOut.length, 'Out (qty)': unitTotals(totalOut),
+    }]
+    const detail = filtered.slice().sort((a, b) =>
       a.supplier.localeCompare(b.supplier) || new Date(a.date) - new Date(b.date)
     ).map(m => ({
-      Supplier: m.supplier,
-      Direction: m.direction === 'in' ? 'IN (received)' : 'OUT (sent)',
-      Date: fmtDate(m.date),
-      Product: m.product,
-      Amount: m.amount ?? '',
-      Unit: m.unit || '',
-      Reference: m.ref || '',
+      Supplier: m.supplier, Category: m.category, Product: m.product,
+      Direction: m.direction === 'in' ? 'IN' : 'OUT',
+      Date: fmtDate(m.date), Amount: m.amount ?? '', Unit: m.unit || '', Reference: m.ref || '',
     }))
-
     const wb = XLSX.utils.book_new()
-    const ws1 = XLSX.utils.json_to_sheet(summary)
-    const ws2 = XLSX.utils.json_to_sheet(detail)
-    ws1['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 20 }, { wch: 13 }, { wch: 20 }]
-    ws2['!cols'] = [{ wch: 28 }, { wch: 15 }, { wch: 14 }, { wch: 30 }, { wch: 10 }, { wch: 8 }, { wch: 18 }]
-    XLSX.utils.book_append_sheet(wb, ws1, 'Summary by Supplier')
-    XLSX.utils.book_append_sheet(wb, ws2, 'Movements')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(overall), 'Overall')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(supplierSummary), 'By Supplier')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productSummary), 'By Product')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detail), 'Movements')
     XLSX.writeFile(wb, `sample-tracking_${from}_to_${to}.xlsx`)
   }
 
@@ -111,21 +122,62 @@ export default function SampleTrackingPage() {
           {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
         </div>
 
+        {moves && moves.length > 0 && (
+          <div className="no-print bg-white rounded-xl border border-gray-100 p-4 space-y-2 mb-4">
+            <p className="text-xs font-semibold text-gray-500">Filter</p>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Category</label>
+              <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className={inputCls}>
+                <option value="">All categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Supplier name</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+                <input type="text" value={supFilter} onChange={e => setSupFilter(e.target.value)}
+                  placeholder="Search supplier…" className={inputCls + ' pl-9'} />
+              </div>
+            </div>
+            {(catFilter || supFilter) && (
+              <button onClick={() => { setCatFilter(''); setSupFilter('') }}
+                className="text-xs text-blue-700">Clear filters</button>
+            )}
+          </div>
+        )}
+
         {loading ? <Spinner /> : moves === null ? (
           <p className="text-center text-sm text-gray-400 mt-8">Pick a date range and generate.</p>
         ) : moves.length === 0 ? (
           <Empty icon="📦" message="No sample movements in this period" />
+        ) : filtered.length === 0 ? (
+          <Empty icon="🔍" message="No movements match the filter" />
         ) : (
           <div className="print-area">
             <div className="text-center mb-4">
               <p className="text-base font-bold text-gray-900">Sample In / Out Tracking</p>
               <p className="text-xs text-gray-500">{fmtDate(from)} – {fmtDate(to)}</p>
-              <p className="text-xs text-gray-400 mt-1">{totalIn} received · {totalOut} sent</p>
             </div>
 
-            {/* Summary */}
+            <div className="bg-slate-900 text-white rounded-xl p-4 mb-4">
+              <p className="text-xs uppercase tracking-wider text-slate-300 mb-2">Overall</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[11px] text-green-300">Received (In)</p>
+                  <p className="text-lg font-bold">{totalIn.length}</p>
+                  <p className="text-[11px] text-slate-300">{unitTotals(totalIn)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-blue-300">Sent (Out)</p>
+                  <p className="text-lg font-bold">{totalOut.length}</p>
+                  <p className="text-[11px] text-slate-300">{unitTotals(totalOut)}</p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-              <p className="text-sm font-bold text-gray-900 mb-2">Summary by supplier</p>
+              <p className="text-sm font-bold text-gray-900 mb-2">By supplier</p>
               <table className="w-full text-xs border border-gray-200">
                 <thead>
                   <tr className="bg-gray-50 text-left text-gray-500">
@@ -146,7 +198,28 @@ export default function SampleTrackingPage() {
               </table>
             </div>
 
-            {/* Detail per supplier */}
+            <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
+              <p className="text-sm font-bold text-gray-900 mb-2">By product</p>
+              <table className="w-full text-xs border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-gray-500">
+                    <th className="py-1.5 px-1.5">Product</th>
+                    <th className="py-1.5 px-1.5 text-right">In</th>
+                    <th className="py-1.5 px-1.5 text-right">Out</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productsArr.map(([prod, g]) => (
+                    <tr key={prod} className="border-t border-gray-100">
+                      <td className="py-1.5 px-1.5">{prod}<span className="text-gray-400 block text-[10px]">{g.supplier}</span></td>
+                      <td className="py-1.5 px-1.5 text-right text-green-700">{g.in.length} <span className="text-gray-400">({unitTotals(g.in)})</span></td>
+                      <td className="py-1.5 px-1.5 text-right text-blue-700">{g.out.length} <span className="text-gray-400">({unitTotals(g.out)})</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             {suppliers.map(([sup, g]) => (
               <div key={sup} className="bg-white rounded-xl border border-gray-100 p-4 mb-3">
                 <div className="flex items-center justify-between mb-2">

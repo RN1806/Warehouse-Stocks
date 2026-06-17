@@ -551,7 +551,7 @@ export async function fetchSampleInOutReport(fromDate, toDate) {
   // IN: stock received
   const { data: inData, error: inErr } = await supabase
     .from('stock_updates')
-    .select('*, products(name, supplier_name, suppliers(name))')
+    .select('*, products(name, industry, supplier_name, suppliers(name, category))')
     .eq('action', 'in')
     .eq('status', 'confirmed')
     .gte('created_at', start).lte('created_at', end)
@@ -566,13 +566,17 @@ export async function fetchSampleInOutReport(fromDate, toDate) {
     .order('delivery_date', { ascending: true })
   if (outErr) throw outErr
 
-  // Build a product-name -> supplier lookup (for OUT items, which lack supplier)
+  // Build a product-name -> supplier/category lookup (for OUT items, which lack supplier)
   const { data: prods } = await supabase
-    .from('products').select('name, supplier_name, suppliers(name)')
+    .from('products').select('name, supplier_name, suppliers(name, category)')
   const supByName = {}
+  const catByName = {}
   ;(prods || []).forEach(p => {
     const sup = p.suppliers?.name || p.supplier_name || 'Unknown supplier'
-    if (p.name) supByName[p.name.trim().toLowerCase()] = sup
+    if (p.name) {
+      supByName[p.name.trim().toLowerCase()] = sup
+      catByName[p.name.trim().toLowerCase()] = p.suppliers?.category || 'Uncategorized'
+    }
   })
 
   // Normalize IN movements
@@ -583,6 +587,7 @@ export async function fetchSampleInOutReport(fromDate, toDate) {
       direction: 'in',
       date: r.created_at,
       supplier: sup,
+      category: r.products?.suppliers?.category || 'Uncategorized',
       product: r.products?.name || r.product_name || '—',
       amount: r.total_amount ?? null,
       unit: r.total_unit || '',
@@ -592,11 +597,13 @@ export async function fetchSampleInOutReport(fromDate, toDate) {
   // Normalize OUT movements
   ;(outData || []).forEach(d => {
     ;(d.delivery_items || []).forEach(it => {
-      const sup = supByName[(it.product_name || '').trim().toLowerCase()] || 'Unknown supplier'
+      const key = (it.product_name || '').trim().toLowerCase()
+      const sup = supByName[key] || 'Unknown supplier'
       movements.push({
         direction: 'out',
         date: d.delivery_date || d.created_at,
         supplier: sup,
+        category: catByName[key] || 'Uncategorized',
         product: it.product_name || '—',
         amount: it.amount ?? null,
         unit: it.unit || '',
