@@ -147,6 +147,98 @@ export default function ProductsPage() {
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-700 bg-white"
   const labelCls = "block text-xs text-gray-500 mb-1"
 
+  function renderGivaudanCollections() {
+    const givaudanProducts = products.filter(p =>
+      (p.suppliers?.name || p.supplier_name || '').toLowerCase().includes('givaud'))
+    const inColl = (cid) => givaudanProducts.filter(p => p.collection_id === cid)
+    return (
+      <div className="mb-3 bg-white rounded-xl border border-purple-100 p-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-bold display text-purple-900">✨ Givaudan Collections</p>
+          {isAdmin && (
+            <button onClick={() => setShowNewColl(v => !v)}
+              className="text-xs text-blue-700 font-medium">{showNewColl ? 'Cancel' : '+ New collection'}</button>
+          )}
+        </div>
+        {showNewColl && isAdmin && (
+          <div className="flex gap-2 mb-3">
+            <input value={newCollName} onChange={e => setNewCollName(e.target.value)}
+              placeholder="Collection name" className={inputCls} />
+            <button onClick={handleAddCollection} disabled={collBusy}
+              className="btn-primary text-sm px-4 rounded-lg whitespace-nowrap">{collBusy ? '…' : 'Create'}</button>
+          </div>
+        )}
+        {collections.length === 0 ? (
+          <p className="text-xs text-slate-400">No collections yet.{isAdmin ? ' Create one above.' : ''}</p>
+        ) : (
+          <div className="space-y-2">
+            {collections.map(c => {
+              const prods = inColl(c.id)
+              const open = openColl[c.id]
+              return (
+                <div key={c.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <button onClick={() => setOpenColl(o => ({ ...o, [c.id]: !o[c.id] }))}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-50 text-left">
+                    <span className="text-base">📂</span>
+                    <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}</span>
+                    <span className="text-[11px] text-slate-400 bg-white px-2 py-0.5 rounded-full">{prods.length}</span>
+                    <span className={`text-xs text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+                  </button>
+                  {open && (
+                    <div className="p-2 space-y-1.5">
+                      {prods.length === 0 && <p className="text-[11px] text-slate-400 px-2">No products in this collection yet.</p>}
+                      {prods.map(p => (
+                        <div key={p.id} className="card-flat px-3 py-2 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{p.name}</p>
+                            <p className="text-[11px] text-slate-400">
+                              Qty {p.current_qty ?? 0} {p.default_unit || ''}
+                              {p.expiry_date && <span className="text-amber-600"> · Exp {p.expiry_date}</span>}
+                            </p>
+                          </div>
+                          {isAdmin && (
+                            <button onClick={() => handleDelete(p.id)}
+                              className="w-6 h-6 rounded text-slate-300 hover:text-red-500">✕</button>
+                          )}
+                        </div>
+                      ))}
+                      {isAdmin && (
+                        addToColl === c.id ? (
+                          <div className="bg-blue-50 rounded-lg p-2 space-y-2">
+                            <input value={collProd.name} onChange={e => setCollProd(s => ({ ...s, name: e.target.value }))}
+                              placeholder="Product name" className={inputCls} />
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <label className="block text-[11px] text-slate-500 mb-0.5">Expiry date</label>
+                                <input type="date" value={collProd.expiry} onChange={e => setCollProd(s => ({ ...s, expiry: e.target.value }))} className={inputCls} />
+                              </div>
+                              <div className="w-20">
+                                <label className="block text-[11px] text-slate-500 mb-0.5">Unit</label>
+                                <input value={collProd.unit} onChange={e => setCollProd(s => ({ ...s, unit: e.target.value }))} className={inputCls} />
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => setAddToColl(null)} className="flex-1 border border-gray-200 rounded-lg py-1.5 text-xs text-gray-600">Cancel</button>
+                              <button onClick={handleAddProductToCollection} disabled={collBusy}
+                                className="flex-1 btn-primary rounded-lg py-1.5 text-xs">{collBusy ? '…' : 'Add product'}</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setAddToColl(c.id); setCollProd({ name:'', expiry:'', unit:'g' }) }}
+                            className="w-full text-xs text-blue-700 border border-dashed border-blue-200 rounded-lg py-2">+ Add product to {c.name}</button>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="px-4 pb-24 pt-2">
       {/* Search + Add */}
@@ -170,104 +262,7 @@ export default function ProductsPage() {
 
       <p className="text-xs text-gray-400 mb-3">{products.length} products total</p>
 
-      {/* ── Givaudan Collections ───────────────────────── */}
-      {(() => {
-        const givaudanProducts = products.filter(p =>
-          (p.suppliers?.name || p.supplier_name || '').toLowerCase().includes('givaud'))
-        const inColl = (cid) => givaudanProducts.filter(p => p.collection_id === cid)
-        const unfiled = givaudanProducts.filter(p => !p.collection_id)
-        return (
-          <div className="mb-4 card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-bold display text-slate-900">✨ Givaudan Collections</p>
-              {isAdmin && (
-                <button onClick={() => setShowNewColl(v => !v)}
-                  className="text-xs text-blue-700 font-medium">{showNewColl ? 'Cancel' : '+ New collection'}</button>
-              )}
-            </div>
-
-            {showNewColl && isAdmin && (
-              <div className="flex gap-2 mb-3">
-                <input value={newCollName} onChange={e => setNewCollName(e.target.value)}
-                  placeholder="Collection name" className={inputCls} />
-                <button onClick={handleAddCollection} disabled={collBusy}
-                  className="btn-primary text-sm px-4 rounded-lg whitespace-nowrap">{collBusy ? '…' : 'Create'}</button>
-              </div>
-            )}
-
-            {collections.length === 0 ? (
-              <p className="text-xs text-slate-400">No collections yet.{isAdmin ? ' Create one above.' : ''}</p>
-            ) : (
-              <div className="space-y-2">
-                {collections.map(c => {
-                  const prods = inColl(c.id)
-                  const open = openColl[c.id]
-                  return (
-                    <div key={c.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                      <button onClick={() => setOpenColl(o => ({ ...o, [c.id]: !o[c.id] }))}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-50 text-left">
-                        <span className="text-base">📂</span>
-                        <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}</span>
-                        <span className="text-[11px] text-slate-400 bg-white px-2 py-0.5 rounded-full">{prods.length}</span>
-                        <span className={`text-xs text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-                      </button>
-                      {open && (
-                        <div className="p-2 space-y-1.5">
-                          {prods.length === 0 && <p className="text-[11px] text-slate-400 px-2">No products in this collection yet.</p>}
-                          {prods.map(p => (
-                            <div key={p.id} className="card-flat px-3 py-2 flex items-center gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">{p.name}</p>
-                                <p className="text-[11px] text-slate-400">
-                                  Qty {p.current_qty ?? 0} {p.default_unit || ''}
-                                  {p.expiry_date && <span className="text-amber-600"> · Exp {p.expiry_date}</span>}
-                                </p>
-                              </div>
-                              {isAdmin && (
-                                <button onClick={() => handleDelete(p.id)}
-                                  className="w-6 h-6 rounded text-slate-300 hover:text-red-500">✕</button>
-                              )}
-                            </div>
-                          ))}
-                          {isAdmin && (
-                            addToColl === c.id ? (
-                              <div className="bg-blue-50 rounded-lg p-2 space-y-2">
-                                <input value={collProd.name} onChange={e => setCollProd(s => ({ ...s, name: e.target.value }))}
-                                  placeholder="Product name" className={inputCls} />
-                                <div className="flex gap-2">
-                                  <div className="flex-1">
-                                    <label className="block text-[11px] text-slate-500 mb-0.5">Expiry date</label>
-                                    <input type="date" value={collProd.expiry} onChange={e => setCollProd(s => ({ ...s, expiry: e.target.value }))} className={inputCls} />
-                                  </div>
-                                  <div className="w-20">
-                                    <label className="block text-[11px] text-slate-500 mb-0.5">Unit</label>
-                                    <input value={collProd.unit} onChange={e => setCollProd(s => ({ ...s, unit: e.target.value }))} className={inputCls} />
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <button onClick={() => setAddToColl(null)} className="flex-1 border border-gray-200 rounded-lg py-1.5 text-xs text-gray-600">Cancel</button>
-                                  <button onClick={handleAddProductToCollection} disabled={collBusy}
-                                    className="flex-1 btn-primary rounded-lg py-1.5 text-xs">{collBusy ? '…' : 'Add product'}</button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button onClick={() => { setAddToColl(c.id); setCollProd({ name:'', expiry:'', unit:'g' }) }}
-                                className="w-full text-xs text-blue-700 border border-dashed border-blue-200 rounded-lg py-2">+ Add product to {c.name}</button>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-                {unfiled.length > 0 && (
-                  <p className="text-[11px] text-slate-400 px-1">{unfiled.length} Givaudan product(s) not in any collection (shown below in the normal list).</p>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })()}
+      {/* Givaudan Collections now render inside the Personal Care & Home Care folder */}
 
       {/* Grouped product list: Category folder -> Supplier -> Products */}
       {loading ? <Spinner /> : sortedCategories.length === 0 ? (
@@ -295,6 +290,7 @@ export default function ProductsPage() {
               {/* Suppliers inside the category */}
               {isOpen && (
                 <div className="mt-2.5 ml-2 space-y-4">
+                  {cat === 'Personal Care & Home Care' && renderGivaudanCollections()}
                   {supGroups.map(([supName, prods]) => (
                     <div key={supName}>
                       <div className="flex items-center gap-2 mb-2 rail pl-3">
