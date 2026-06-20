@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useProducts, addProduct, deleteProduct, addSupplier, renameProduct,
-         useCollections, addCollection, addProductToCollection, updateProductExpiry } from '../hooks/useWarehouse'
+         useCollections, addCollection, addProductToCollection, updateProductExpiry, deleteCollection } from '../hooks/useWarehouse'
 import { useSuppliers } from '../hooks/useWarehouse'
 import { INDUSTRIES, AMOUNT_UNITS, SUPPLIER_CATEGORIES } from '../lib/constants'
 import { Spinner, Empty } from '../components/UI'
@@ -50,6 +50,16 @@ export default function ProductsPage() {
     setCollBusy(true)
     try { await addCollection(newCollName); setNewCollName(''); setShowNewColl(false); refetchCollections() }
     catch (e) { alert(e.message) } finally { setCollBusy(false) }
+  }
+
+  async function handleDeleteCollection(c) {
+    const prods = products.filter(p => p.collection_id === c.id)
+    const msg = prods.length > 0
+      ? `Delete collection "${c.name}"? Its ${prods.length} product(s) will be kept but unlinked from the collection.`
+      : `Delete collection "${c.name}"?`
+    if (!confirm(msg)) return
+    try { await deleteCollection(c.id); refetchCollections(); refetch() }
+    catch (e) { alert(e.message) }
   }
 
   async function handleAddProductToCollection() {
@@ -177,13 +187,19 @@ export default function ProductsPage() {
               const open = openColl[c.id]
               return (
                 <div key={c.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                  <button onClick={() => setOpenColl(o => ({ ...o, [c.id]: !o[c.id] }))}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-50 text-left">
-                    <span className="text-base">📂</span>
-                    <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}</span>
-                    <span className="text-[11px] text-slate-400 bg-white px-2 py-0.5 rounded-full">{prods.length}</span>
-                    <span className={`text-xs text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-                  </button>
+                  <div className="flex items-center bg-slate-50">
+                    <button onClick={() => setOpenColl(o => ({ ...o, [c.id]: !o[c.id] }))}
+                      className="flex-1 flex items-center gap-2 px-3 py-2.5 text-left">
+                      <span className="text-base">📂</span>
+                      <span className="flex-1 text-sm font-semibold text-slate-800">{c.name}</span>
+                      <span className="text-[11px] text-slate-400 bg-white px-2 py-0.5 rounded-full">{prods.length}</span>
+                      <span className={`text-xs text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+                    </button>
+                    {isAdmin && (
+                      <button onClick={() => handleDeleteCollection(c)}
+                        className="px-3 py-2.5 text-slate-300 hover:text-red-500" title="Delete collection">🗑</button>
+                    )}
+                  </div>
                   {open && (
                     <div className="p-2 space-y-1.5">
                       {prods.length === 0 && <p className="text-[11px] text-slate-400 px-2">No products in this collection yet.</p>}

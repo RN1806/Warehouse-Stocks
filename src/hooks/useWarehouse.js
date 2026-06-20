@@ -673,3 +673,10 @@ export async function updateProductExpiry(productId, expiryDate) {
     .update({ expiry_date: expiryDate || null }).eq('id', productId)
   if (error) throw error
 }
+
+export async function deleteCollection(collectionId) {
+  // Unlink products first so they aren't orphaned, then delete the collection
+  await supabase.from('products').update({ collection_id: null }).eq('collection_id', collectionId)
+  const { error } = await supabase.from('collections').delete().eq('id', collectionId)
+  if (error) throw error
+}
