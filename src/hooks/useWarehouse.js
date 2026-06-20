@@ -633,3 +633,43 @@ export async function renameProduct(productId, newName) {
     .eq('id', productId)
   if (error) throw error
 }
+
+// ── Givaudan collections ──────────────────────────────────
+export function useCollections() {
+  const [collections, setCollections] = useState([])
+  const fetch = useCallback(async () => {
+    try {
+      const { data } = await supabase.from('collections').select('*').order('name')
+      setCollections(data || [])
+    } catch { setCollections([]) }
+  }, [])
+  useEffect(() => { fetch() }, [fetch])
+  return { collections, refetch: fetch }
+}
+
+export async function addCollection(name) {
+  const { data, error } = await supabase.from('collections')
+    .insert({ name: name.trim(), supplier_name: 'Givaudan' }).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function addProductToCollection({ name, collectionId, expiryDate, defaultUnit }) {
+  const { data, error } = await supabase.from('products').insert({
+    name: name.trim(),
+    supplier_name: 'Givaudan',
+    industry: 'Cosmetic & Personal Care',
+    collection_id: collectionId,
+    expiry_date: expiryDate || null,
+    current_qty: 0,
+    default_unit: defaultUnit || 'g',
+  }).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateProductExpiry(productId, expiryDate) {
+  const { error } = await supabase.from('products')
+    .update({ expiry_date: expiryDate || null }).eq('id', productId)
+  if (error) throw error
+}
