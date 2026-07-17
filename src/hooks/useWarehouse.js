@@ -678,20 +678,20 @@ return { collections, refetch: fetch }
 
 export async function addCollection(name) {
 const { data, error } = await supabase.from('collections')
-.insert({ name: name.trim(), supplier_name: 'Givaudon' }).select().single()
+.insert({ name: name.trim(), supplier_name: 'Givaudan' }).select().single()
 if (error) throw error
 return data
 }
 
 export async function addProductToCollection({ name, collectionId, expiryDate, defaultUnit, storageLocation }) {
-// Find the real Givaudon supplier record so the product links correctly and
-// shows up when filtering by that supplier (spelling: "Givaudon").
+// Find the real Givaudan supplier record so the product links correctly and
+// shows up when filtering by that supplier (spelling: "Givaudan").
 const { data: sup } = await supabase
 .from('suppliers').select('id, name').ilike('name', '%givaud%').limit(1).maybeSingle()
 const { data, error } = await supabase.from('products').insert({
 name: name.trim(),
 supplier_id: sup?.id || null,
-supplier_name: sup?.name || 'Givaudon',
+supplier_name: sup?.name || 'Givaudan',
 industry: 'Cosmetic & Personal Care',
 collection_id: collectionId,
 expiry_date: expiryDate || null,
