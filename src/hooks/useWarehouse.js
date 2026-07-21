@@ -209,13 +209,36 @@ if (error) throw error
 return data
 }
 
+// Figure out the next form number by looking at the highest sequence number
+// currently in use (NOT a row count — deleting old forms leaves gaps, and a
+// plain count(*) can collide with a number that's still in use further up
+// the sequence. e.g. 12 rows total but the highest existing number is 013).
+async function nextFormNumber(dateStr) {
+const { data: existing } = await supabase.from('deliveries').select('form_number')
+let maxNum = 0
+;(existing || []).forEach(d => {
+const m = /-(\d+)$/.exec(d.form_number || '')
+if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10))
+})
+const num = String(maxNum + 1).padStart(3, '0')
+return `KW-${dateStr}-${num}`
+}
+
 export async function createDelivery(form, items) {
 const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-const { count } = await supabase.from('deliveries').select('*', { count: 'exact', head: true })
-const num = String((count ?? 0) + 1).padStart(3, '0')
-const form_number = `KW-${dateStr}-${num}`
 const { data: { user } } = await supabase.auth.getUser()
-const { data, error } = await supabase.from('deliveries').insert({ ...form, form_number, sales_rep_id: user?.id ?? null }).select().single()
+
+// Try a few times in case two people submit at the exact same moment
+// (both compute the same "next" number before either has inserted).
+let data, error
+for (let attempt = 0; attempt < 5; attempt++) {
+const form_number = await nextFormNumber(dateStr)
+;({ data, error } = await supabase.from('deliveries')
+.insert({ ...form, form_number, sales_rep_id: user?.id ?? null }).select().single())
+if (!error) break
+// 23505 = unique_violation — someone else just took this number, retry.
+if (error.code !== '23505') break
+}
 if (error) throw error
 if (items.length > 0) {
 const rows = items.map((item, i) => ({ ...item, delivery_id: data.id, item_order: i + 1 }))
