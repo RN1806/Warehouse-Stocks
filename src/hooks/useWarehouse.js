@@ -291,8 +291,8 @@ if (error) throw error
 
 if (!del) return
 
-const leavingDraft = prevStatus === 'Draft' && status !== 'Draft'
-const returningToDraft = prevStatus !== 'Draft' && status === 'Draft'
+const leavingDraft = prevStatus === 'draft' && status !== 'draft'
+const returningToDraft = prevStatus !== 'draft' && status === 'draft'
 
 // Only act on the Draft boundary; other transitions don't change stock.
 if (!leavingDraft && !returningToDraft) return
@@ -423,16 +423,33 @@ if (error) throw error
 return data
 }
 
+// Same collision-safe approach as nextFormNumber() for deliveries above —
+// uses the highest existing number rather than a row count, so deleting a
+// shipment later doesn't cause a future ship_number to collide.
+async function nextShipNumber(dateStr) {
+const { data: existing } = await supabase.from('shipments').select('ship_number')
+let maxNum = 0
+;(existing || []).forEach(s => {
+const m = /-(\d+)$/.exec(s.ship_number || '')
+if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10))
+})
+const num = String(maxNum + 1).padStart(3, '0')
+return `SH-${dateStr}-${num}`
+}
+
 export async function createShipment(form, items) {
 const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-const { count } = await supabase.from('shipments').select('*', { count: 'exact', head: true })
-const num = String((count ?? 0) + 1).padStart(3, '0')
-const ship_number = `SH-${dateStr}-${num}`
 const { data: { user } } = await supabase.auth.getUser()
-const { data, error } = await supabase
+let data, error
+for (let attempt = 0; attempt < 5; attempt++) {
+const ship_number = await nextShipNumber(dateStr)
+;({ data, error } = await supabase
 .from('shipments')
 .insert({ ...form, ship_number, created_by: user?.id ?? null })
-.select().single()
+.select().single())
+if (!error) break
+if (error.code !== '23505') break
+}
 if (error) throw error
 const filled = items.filter(it => it.product_name.trim())
 if (filled.length > 0) {
