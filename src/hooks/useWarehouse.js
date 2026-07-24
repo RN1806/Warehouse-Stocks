@@ -209,6 +209,25 @@ if (error) throw error
 return data
 }
 
+// Update an existing delivery's content (customer/lab info + product rows).
+// Status changes still go through updateDeliveryStatus — this only touches
+// the editable form fields, then replaces the line items wholesale.
+export async function updateDelivery(id, form, items) {
+const { id: _id, form_number, delivery_items, created_at, ...rest } = form
+const { error } = await supabase.from('deliveries').update(rest).eq('id', id)
+if (error) throw error
+
+const { error: de } = await supabase.from('delivery_items').delete().eq('delivery_id', id)
+if (de) throw de
+
+const filled = items.filter(it => it.product_name.trim())
+if (filled.length > 0) {
+const rows = filled.map((item, i) => ({ ...item, delivery_id: id, item_order: i + 1 }))
+const { error: ie } = await supabase.from('delivery_items').insert(rows)
+if (ie) throw ie
+}
+}
+
 // Figure out the next form number by looking at the highest sequence number
 // currently in use (NOT a row count — deleting old forms leaves gaps, and a
 // plain count(*) can collide with a number that's still in use further up

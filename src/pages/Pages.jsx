@@ -102,7 +102,7 @@ style={{ width:52, height:52 }}>
 }
 
 // ── Delivery detail ───────────────────────────────────────
-export function DeliveryDetailPage({ id, onBack }) {
+export function DeliveryDetailPage({ id, onBack, onEdit }) {
 const [delivery, setDelivery] = useState(null)
 const [loading, setLoading] = useState(true)
 const [updating, setUpdating] = useState(false)
@@ -133,6 +133,10 @@ return (
 <button onClick={onBack} className="text-slate-400 text-sm">← Back</button>
 <div className="flex-1" />
 <StatusBadge status={delivery.status} />
+{canEditStatus && (
+<button onClick={() => onEdit(id)}
+className="bg-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-lg ring-1 ring-white/15">✎ Edit</button>
+)}
 <button onClick={() => window.print()}
 className="bg-white text-slate-900 text-xs font-semibold px-3 py-1.5 rounded-lg">🖨️ Print</button>
 </div>

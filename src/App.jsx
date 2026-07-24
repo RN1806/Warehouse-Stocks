@@ -56,7 +56,7 @@ staff: 'Staff Directory', profile: 'My Profile',
 function Shell() {
 const { session, profile, isRecovery } = useAuth()
 const [tab, setTab] = useState(null) // null = home menu
-const [view, setView] = useState('list') // list | new | detail
+const [view, setView] = useState('list') // list | new | edit | detail
 const [detailId, setDetailId] = useState(null)
 
 const isAdmin = profile?.role === 'admin'
@@ -87,9 +87,14 @@ if (view === 'new') return (
 <NewDeliveryPage onSaved={() => setView('list')} onBack={() => setView('list')} />
 </div>
 )
+if (view === 'edit') return (
+<div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto">
+<NewDeliveryPage editingId={detailId} onSaved={() => setView('detail')} onBack={() => setView('detail')} />
+</div>
+)
 if (view === 'detail') return (
 <div className="min-h-screen bg-slate-100 font-sans max-w-sm mx-auto">
-<DeliveryDetailPage id={detailId} onBack={() => setView('list')} />
+<DeliveryDetailPage id={detailId} onBack={() => setView('list')} onEdit={did => { setDetailId(did); setView('edit') }} />
 </div>
 )
 
