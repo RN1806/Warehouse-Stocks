@@ -44,6 +44,7 @@ const [items, setItems] = useState([{...EMPTY_ITEM},{...EMPTY_ITEM},{...EMPTY_IT
 const [showCustomerPicker, setShowCustomerPicker] = useState(false)
 const [saving, setSaving] = useState(false)
 const [err, setErr] = useState('')
+const [showRules, setShowRules] = useState(false)
 
 // Editing an existing form: fetch it, then seed the state above.
 const [loadingEdit, setLoadingEdit] = useState(!!editingId)
@@ -92,15 +93,30 @@ function setItem(i, k, v) {
 setItems(items => items.map((it, idx) => idx === i ? { ...it, [k]: v } : it))
 }
 
-async function handleSubmit(e) {
-e.preventDefault()
+function validate() {
 if (form.delivery_type === 'customer') {
-if (!form.customer_name.trim()) { setErr('Please select or enter a customer.'); return }
-if (!form.customer_address.trim()) { setErr('Address is required.'); return }
-if (!form.contact_phone.trim()) { setErr('Phone number is required.'); return }
+if (!form.customer_name.trim()) return 'Please select or enter a customer.'
+if (!form.customer_address.trim()) return 'Address is required.'
+if (!form.contact_phone.trim()) return 'Phone number is required.'
 }
 const filled = items.filter(it => it.product_name.trim())
-if (filled.length === 0) { setErr('Please add at least one product.'); return }
+if (filled.length === 0) return 'Please add at least one product.'
+return ''
+}
+
+function handleSubmit(e) {
+e.preventDefault()
+const v = validate()
+if (v) { setErr(v); return }
+setErr('')
+// New forms must acknowledge the sample withdrawal rules first.
+// Editing an existing form skips straight to saving.
+if (!editingId) { setShowRules(true); return }
+doSave()
+}
+
+async function doSave() {
+const filled = items.filter(it => it.product_name.trim())
 setSaving(true); setErr('')
 try {
 if (editingId) {
@@ -110,7 +126,7 @@ await createDelivery(form, filled)
 }
 onSaved()
 } catch (e) { setErr(e.message) }
-finally { setSaving(false) }
+finally { setSaving(false); setShowRules(false) }
 }
 
 const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-blue-700 bg-white"
@@ -198,6 +214,11 @@ className="text-xs bg-blue-900 text-white px-3 py-1.5 rounded-lg">📒 Address b
 <label className={labelCls}>Company name *</label>
 <input type="text" value={form.customer_name} onChange={e => setF('customer_name', e.target.value)}
 placeholder="Company name" className={inputCls} required />
+</div>
+<div>
+<label className={labelCls}>Email</label>
+<input type="email" value={form.customer_email} onChange={e => setF('customer_email', e.target.value)}
+placeholder="customer@company.com" className={inputCls} />
 </div>
 <div>
 <label className={labelCls}>Address *</label>
@@ -330,7 +351,70 @@ className="w-full bg-blue-900 text-white rounded-xl py-3.5 text-sm font-semibold
 {showCustomerPicker && (
 <CustomerPickerModal onSelect={selectCustomer} onClose={() => setShowCustomerPicker(false)} />
 )}
+
+{showRules && (
+<SampleRulesModal
+saving={saving}
+onCancel={() => setShowRules(false)}
+onConfirm={doSave}
+/>
+)}
 </>
+)
+}
+
+// Sample withdrawal rules — shown once before a new delivery form is saved,
+// so whoever's creating it has seen the current cutoff times and process.
+function SampleRulesModal({ onCancel, onConfirm, saving }) {
+return (
+<div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+<div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+<div className="relative bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto">
+<div className="p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+<div className="w-9 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden" />
+<h2 className="text-base font-bold text-gray-900">📋 กฏการเบิกตัวอย่างห้อง Sample</h2>
+<p className="text-xs text-gray-400 mt-0.5">Please review before saving</p>
+</div>
+
+<div className="p-5 space-y-4 text-sm text-gray-700 leading-relaxed">
+<div>
+<p className="font-semibold text-gray-900 mb-1.5">การเบิกตัวอย่าง</p>
+<ul className="space-y-2 list-disc pl-4">
+<li>สำหรับการเบิกตัวอย่างส่งตามรอบ รบกวนเซลล์เบิกตัวอย่างก่อนเที่ยงของวันส่งของ (อังคารหรือพุธ และศุกร์ ช่วงเวลาประมาณ 16.00 น.) หรือก่อนหน้าวันที่จะส่งของ ถ้าหลังจากนั้นขออนุญาตส่งในรอบถัดไปนะครับ (หากมีการเบิกตัวอย่างจำนวนมาก จะทำการส่งตัวอย่างที่เบิกมาก่อน ส่วนที่ส่งมาทีหลังจะเป็นรอบถัดไป)</li>
+<li>กรณีเบิกตัวอย่างแล้วเซลล์มารับตัวอย่างเอง รบกวนเบิกก่อนหน้าจะมารับอย่างน้อย 1 วัน หรือถ้าด่วนจริงๆ รบกวนเซลล์เข้ามาช่วยเตรียมตัวอย่างนะครับ</li>
+<li>ขอความร่วมมือเซลล์หรือแลปที่มาเตรียมตัวอย่างเอง รบกวนแจ้งและถ่ายรูปส่งให้นัทด้วยนะครับ</li>
+</ul>
+</div>
+
+<div>
+<p className="font-semibold text-gray-900 mb-1.5">การทำงานของ Sample</p>
+<div className="space-y-1.5">
+{[
+['8.30 – 10.00 น.', 'นำตัวอย่างใหม่เข้า Stock และนำไปจัดวางในชั้นเก็บตัวอย่าง'],
+['10.00 – 12.00 น.', 'จัดตัวอย่างตามที่เซลล์เบิก'],
+['13.00 – 15.00 น.', 'จัดตัวอย่างตามที่เซลล์เบิก'],
+['15.00 – 16.30 น.', 'แพ็คตัวอย่างลงกล่องเพื่อรอจัดส่ง'],
+['16.30 – 17.30 น.', 'ทำการตัด Stock ตัวอย่างที่จัดเตรียมเรียบร้อยแล้ว'],
+].map(([time, desc]) => (
+<div key={time} className="flex gap-2 text-xs">
+<span className="font-mono font-semibold text-blue-800 flex-shrink-0 w-24">{time}</span>
+<span className="text-gray-600">{desc}</span>
+</div>
+))}
+</div>
+</div>
+</div>
+
+<div className="p-5 pt-2 flex gap-2 sticky bottom-0 bg-white border-t border-gray-100">
+<button type="button" onClick={onCancel}
+className="flex-1 border border-gray-200 rounded-xl py-3 text-sm text-gray-600">Back</button>
+<button type="button" onClick={onConfirm} disabled={saving}
+className="flex-1 bg-blue-900 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-60">
+{saving ? 'Saving…' : 'I understand, Save'}
+</button>
+</div>
+</div>
+</div>
 )
 }
 
