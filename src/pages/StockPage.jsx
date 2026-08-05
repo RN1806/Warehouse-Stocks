@@ -10,6 +10,7 @@ product_id: '', product_name: '', supplier_name: '',
 lot_number: '', pack_size_amount: '', pack_size_unit: 'g',
 number_of_packs: '', total_amount: '', total_unit: 'g',
 expiry_date: '', storage_location: '', action: 'in', notes: '',
+tracking_number: '', expense_amount: '',
 }
 
 function timeAgo(str) {
@@ -98,6 +99,8 @@ no_expiry: noExpiry,
 pack_size_amount: form.pack_size_amount ? parseFloat(form.pack_size_amount) : null,
 number_of_packs: form.number_of_packs ? parseInt(form.number_of_packs) : null,
 total_amount: form.total_amount ? parseFloat(form.total_amount) : null,
+tracking_number: form.tracking_number.trim() || null,
+expense_amount: form.expense_amount ? parseFloat(form.expense_amount) : null,
 status: submitStatus,
 updated_by: session?.user?.id,
 updated_by_name: profile?.full_name ?? '',
@@ -183,6 +186,8 @@ return (
 {u.lot_number && <span>Lot: {u.lot_number}</span>}
 {u.no_expiry ? <span>Exp: No expiry</span> : u.expiry_date && <span>Exp: {u.expiry_date}</span>}
 {u.storage_location && <span>📍 {u.storage_location}</span>}
+{u.tracking_number && <span>🚚 {u.tracking_number}</span>}
+{u.expense_amount != null && <span className="text-amber-700 font-medium">฿{u.expense_amount}</span>}
 <span>{timeAgo(u.created_at)}</span>
 </div>
 {u.notes && (
@@ -341,6 +346,20 @@ className={inputCls} />
 <label className={labelCls}>Storage location / Place to keep</label>
 <input type="text" value={form.storage_location} onChange={e => setF('storage_location', e.target.value)}
 placeholder="e.g. Shelf A3, Cold Room 2" className={inputCls} />
+</div>
+
+{/* Tracking number */}
+<div>
+<label className={labelCls}>Tracking number</label>
+<input type="text" value={form.tracking_number} onChange={e => setF('tracking_number', e.target.value)}
+placeholder="e.g. courier tracking / shipment no." className={inputCls} />
+</div>
+
+{/* Expense */}
+<div>
+<label className={labelCls}>Expense (฿ THB)</label>
+<input type="number" min="0" step="0.01" value={form.expense_amount} onChange={e => setF('expense_amount', e.target.value)}
+placeholder="e.g. 450.00" className={inputCls} />
 </div>
 
 {/* Notes */}
