@@ -11,6 +11,7 @@ import SampleTrackingPage from './pages/SampleTrackingPage'
 import ShipmentsPage from './pages/ShipmentsPage'
 import ReportsPage from './pages/ReportsPage'
 import StaffPage from './pages/StaffPage'
+import HistoryPage from './pages/HistoryPage'
 import { DeliveriesPage, DeliveryDetailPage, ProfilePage, CustomersPage } from './pages/Pages'
 import { useIncomingRequests, useNotifications } from './hooks/useWarehouse'
 import './index.css'
@@ -42,6 +43,7 @@ return [
 { id: 'reports', label: 'Reports', icon: '📊', desc: 'Stock import by industry' },
 { id: 'tracking', label: 'Sample Tracking', icon: '🔄', desc: 'In/out by supplier & product' },
 ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', desc: 'Manage staff roles' }] : []),
+...(isAdmin ? [{ id: 'history', label: 'History', icon: '🕓', desc: 'Every action, across the app' }] : []),
 { id: 'profile', label: 'My Profile', icon: '👤', desc: 'Your account & info' },
 ]
 }
@@ -50,7 +52,7 @@ const TITLES = {
 deliveries: 'Sample Delivery', alerts: 'Alerts', requests: 'Sample Requests',
 stock: 'Stock Manager', products: 'Products', customers: 'Customer Book',
 shipments: 'Shipments', reports: 'Reports', tracking: 'Sample Tracking',
-staff: 'Staff Directory', profile: 'My Profile',
+staff: 'Staff Directory', profile: 'My Profile', history: 'History',
 }
 
 function Shell() {
@@ -110,6 +112,7 @@ case 'shipments': return <ShipmentsPage />
 case 'reports': return <ReportsPage />
 case 'tracking': return <SampleTrackingPage />
 case 'staff': return <StaffPage />
+case 'history': return <HistoryPage />
 case 'profile': return <ProfilePage />
 default: return null
 }

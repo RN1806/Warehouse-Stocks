@@ -1,6 +1,56 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
+// ── Activity / audit log ──────────────────────────────────
+// Fire-and-forget logger used across this file. Never throws — a logging
+// failure must never block the real action it's describing.
+async function logActivity(action, entityType, entityLabel, details, entityId = null) {
+try {
+const { data: { user } } = await supabase.auth.getUser()
+let actorName = null
+if (user) {
+const { data: me } = await supabase.from('sales_reps').select('full_name').eq('id', user.id).single()
+actorName = me?.full_name || null
+}
+await supabase.from('audit_log').insert({
+actor_id: user?.id ?? null,
+actor_name: actorName,
+action, entity_type: entityType, entity_id: entityId,
+entity_label: entityLabel, details,
+})
+} catch { /* never block the real action */ }
+}
+
+// Admin-only feed of everything logged above. Paginated.
+export function useAuditLog({ entityType = 'all', pageSize = 30 } = {}) {
+const [rows, setRows] = useState([])
+const [loading, setLoading] = useState(true)
+const [page, setPage] = useState(0)
+const [hasMore, setHasMore] = useState(false)
+
+const fetch = useCallback(async (p = 0) => {
+setLoading(true)
+let q = supabase.from('audit_log').select('*').order('created_at', { ascending: false })
+if (entityType !== 'all') q = q.eq('entity_type', entityType)
+q = q.range(p * pageSize, p * pageSize + pageSize) // fetch one extra to know if there's more
+const { data } = await q
+const list = data || []
+setHasMore(list.length > pageSize)
+setRows(list.slice(0, pageSize))
+setPage(p)
+setLoading(false)
+}, [entityType, pageSize])
+
+useEffect(() => { fetch(0) }, [fetch])
+
+return {
+rows, loading, page, hasMore,
+nextPage: () => hasMore && fetch(page + 1),
+prevPage: () => page > 0 && fetch(page - 1),
+refetch: () => fetch(page),
+}
+}
+
 // ── Suppliers ─────────────────────────────────────────────
 export function useSuppliers() {
 const [suppliers, setSuppliers] = useState([])
@@ -28,6 +78,7 @@ const { data, error } = await supabase
 .select()
 .single()
 if (error) throw error
+logActivity('created', 'supplier', data.name, category ? `Category: ${category}` : null, data.id)
 return data
 }
 
@@ -70,12 +121,15 @@ return { products, loading, refetch: fetch }
 export async function addProduct(payload) {
 const { data, error } = await supabase.from('products').insert(payload).select().single()
 if (error) throw error
+logActivity('created', 'product', data.name, payload.supplier_name ? `Supplier: ${payload.supplier_name}` : null, data.id)
 return data
 }
 
 export async function deleteProduct(id) {
+const { data: p } = await supabase.from('products').select('name').eq('id', id).single()
 const { error } = await supabase.from('products').delete().eq('id', id)
 if (error) throw error
+logActivity('deleted', 'product', p?.name || id, null, id)
 }
 
 // ── Stock updates ─────────────────────────────────────────
@@ -116,6 +170,9 @@ if (error) throw error
 if (payload.status === 'confirmed' && payload.product_id) {
 await applyStockQty(payload.product_id, payload.action, payload.total_amount)
 }
+const actionLabel = payload.action === 'in' ? 'Stock In' : payload.action === 'out' ? 'Stock Out' : 'Stock Adjust'
+logActivity('created', 'stock_update', payload.product_name,
+`${actionLabel}: ${payload.total_amount ?? ''} ${payload.total_unit ?? ''} (${data.status})`, payload.product_id)
 return data
 }
 
@@ -126,6 +183,8 @@ const { error } = await supabase
 .eq('id', updateId)
 if (error) throw error
 await applyStockQty(productId, action, totalAmount)
+const { data: u } = await supabase.from('stock_updates').select('product_name').eq('id', updateId).single()
+logActivity('status_changed', 'stock_update', u?.product_name, 'pending → confirmed', productId)
 }
 
 async function applyStockQty(productId, action, amount) {
@@ -139,6 +198,7 @@ await supabase.from('products').update({ current_qty: newQty }).eq('id', product
 }
 
 export async function undoStockUpdate(updateId, productId, action, totalAmount) {
+const { data: u } = await supabase.from('stock_updates').select('product_name').eq('id', updateId).single()
 // Reverse the qty change
 const { data: p } = await supabase.from('products').select('current_qty').eq('id', productId).single()
 if (p) {
@@ -148,6 +208,7 @@ if (action === 'out') newQty = p.current_qty + (totalAmount || 0)
 await supabase.from('products').update({ current_qty: newQty }).eq('id', productId)
 }
 await supabase.from('stock_updates').delete().eq('id', updateId)
+logActivity('deleted', 'stock_update', u?.product_name, 'Undone — quantity reversed', productId)
 }
 
 // ── Customers ─────────────────────────────────────────────
@@ -168,15 +229,19 @@ if (payload.id) {
 const { id, created_by, created_at, ...rest } = payload
 const { error } = await supabase.from('customers').update(rest).eq('id', id)
 if (error) throw error
+logActivity('updated', 'customer', payload.company_name, null, id)
 } else {
-const { error } = await supabase.from('customers').insert(payload)
+const { data, error } = await supabase.from('customers').insert(payload).select().single()
 if (error) throw error
+logActivity('created', 'customer', payload.company_name, null, data?.id)
 }
 }
 
 export async function deleteCustomer(id) {
+const { data: c } = await supabase.from('customers').select('company_name').eq('id', id).single()
 const { error } = await supabase.from('customers').delete().eq('id', id)
 if (error) throw error
+logActivity('deleted', 'customer', c?.company_name || id, null, id)
 }
 
 // ── Deliveries ────────────────────────────────────────────
@@ -226,6 +291,7 @@ const rows = filled.map((item, i) => ({ ...item, delivery_id: id, item_order: i 
 const { error: ie } = await supabase.from('delivery_items').insert(rows)
 if (ie) throw ie
 }
+logActivity('updated', 'delivery', form_number, `${filled.length} product(s)`, id)
 }
 
 // Figure out the next form number by looking at the highest sequence number
@@ -269,6 +335,7 @@ if (ie) throw ie
 if ((form.status || '').toLowerCase() === 'draft') {
 await notifyAdminsNewDraft(data, items)
 }
+logActivity('created', 'delivery', data.form_number, `${items.length} product(s) — ${form.customer_name || 'Lab use'}`, data.id)
 return data
 }
 
@@ -300,7 +367,7 @@ export async function updateDeliveryStatus(id, status) {
 // Fetch current status + items so we can deduct/restore stock on transitions
 const { data: del } = await supabase
 .from('deliveries')
-.select('status, delivery_items(*)')
+.select('status, form_number, delivery_items(*)')
 .eq('id', id).single()
 const prevStatus = del?.status
 
@@ -309,6 +376,7 @@ const { error } = await supabase.from('deliveries').update({ status }).eq('id', 
 if (error) throw error
 
 if (!del) return
+logActivity('status_changed', 'delivery', del.form_number, `${prevStatus} → ${status}`, id)
 
 const leavingDraft = prevStatus === 'draft' && status !== 'draft'
 const returningToDraft = prevStatus !== 'draft' && status === 'draft'
@@ -412,8 +480,10 @@ await supabase.from('notifications').update({ read: true })
 }
 
 export async function deleteDelivery(id) {
+const { data: d } = await supabase.from('deliveries').select('form_number').eq('id', id).single()
 const { error } = await supabase.from('deliveries').delete().eq('id', id)
 if (error) throw error
+logActivity('deleted', 'delivery', d?.form_number || id, null, id)
 }
 
 // ── Shipments (abroad orders) ─────────────────────────────
@@ -492,12 +562,15 @@ item_order: i + 1,
 const { error: ie } = await supabase.from('shipment_items').insert(rows)
 if (ie) throw ie
 }
+logActivity('created', 'shipment', data.ship_number, `${filled.length} product(s)`, data.id)
 return data
 }
 
 export async function deleteShipment(id) {
+const { data: s } = await supabase.from('shipments').select('ship_number').eq('id', id).single()
 const { error } = await supabase.from('shipments').delete().eq('id', id)
 if (error) throw error
+logActivity('deleted', 'shipment', s?.ship_number || id, null, id)
 }
 
 // ── Stock IN report ───────────────────────────────────────
@@ -536,6 +609,7 @@ const { error } = await supabase
 .update({ full_name: full_name.trim(), phone: phone.trim() || null })
 .eq('id', userId)
 if (error) throw error
+logActivity('updated', 'staff', full_name.trim(), 'Updated own profile', userId)
 }
 
 // ── Staff directory (admin) ───────────────────────────────
@@ -555,8 +629,11 @@ return { staff, loading, refetch: fetch }
 }
 
 export async function updateStaffMember(id, fields) {
+const { data: s } = await supabase.from('sales_reps').select('full_name').eq('id', id).single()
 const { error } = await supabase.from('sales_reps').update(fields).eq('id', id)
 if (error) throw error
+const changed = Object.keys(fields).join(', ')
+logActivity('updated', 'staff', s?.full_name || id, `Changed: ${changed}`, id)
 }
 
 // ── Sample request / ownership workflow ───────────────────
@@ -605,6 +682,7 @@ owner_email: ownerEmail,
 note: note || null,
 })
 if (error) throw error
+logActivity('created', 'sample_request', productName, `Requested from ${ownerEmail}`)
 }
 
 // Requests addressed to me (owner inbox)
@@ -624,10 +702,12 @@ return { requests, loading, refetch: fetch }
 }
 
 export async function decideRequest(id, status) {
+const { data: r } = await supabase.from('sample_requests').select('product_name').eq('id', id).single()
 const { error } = await supabase.from('sample_requests')
 .update({ status, decided_at: new Date().toISOString() })
 .eq('id', id)
 if (error) throw error
+logActivity(status === 'approved' ? 'approved' : 'rejected', 'sample_request', r?.product_name || id, null, id)
 }
 
 // Has THIS user been approved for THIS product already?
@@ -715,11 +795,13 @@ return movements
 
 // ── Rename a product (admin only, enforced by RLS) ────────
 export async function renameProduct(productId, newName) {
+const { data: p } = await supabase.from('products').select('name').eq('id', productId).single()
 const { error } = await supabase
 .from('products')
 .update({ name: newName.trim() })
 .eq('id', productId)
 if (error) throw error
+logActivity('renamed', 'product', newName.trim(), p?.name ? `${p.name} → ${newName.trim()}` : null, productId)
 }
 
 // ── Givaudan collections ──────────────────────────────────
@@ -739,6 +821,7 @@ export async function addCollection(name) {
 const { data, error } = await supabase.from('collections')
 .insert({ name: name.trim(), supplier_name: 'Givaudan' }).select().single()
 if (error) throw error
+logActivity('created', 'collection', data.name, null, data.id)
 return data
 }
 
@@ -759,6 +842,7 @@ default_unit: defaultUnit || 'g',
 storage_location: storageLocation?.trim() || null,
 }).select().single()
 if (error) throw error
+logActivity('created', 'product', data.name, 'Added to Givaudan collection', data.id)
 return data
 }
 
@@ -777,8 +861,10 @@ if (error) throw error
 }
 
 export async function deleteCollection(collectionId) {
+const { data: c } = await supabase.from('collections').select('name').eq('id', collectionId).single()
 // Unlink products first so they aren't orphaned, then delete the collection
 await supabase.from('products').update({ collection_id: null }).eq('collection_id', collectionId)
 const { error } = await supabase.from('collections').delete().eq('id', collectionId)
 if (error) throw error
+logActivity('deleted', 'collection', c?.name || collectionId, null, collectionId)
 }
