@@ -31,10 +31,29 @@ rejected: { icon: '✕', cls: 'text-red-700 bg-red-50' },
 // via their human-readable counterparts elsewhere, timestamps are noisy).
 const HIDDEN_FIELDS = new Set([
 'id', 'created_by', 'sales_rep_id', 'requester_id', 'supplier_id', 'collection_id',
-'delivery_items', 'shipment_items',
+'delivery_items', 'shipment_items', 'product_id', 'updated_by',
 ])
 
 const LIST_FIELDS = { delivery_items: 'Products', shipment_items: 'Products' }
+
+// Friendlier labels matching the actual form wording, and (for stock
+// updates specifically) the order fields appear in on the Stock In/Out form.
+const FIELD_LABELS = {
+product_name: 'Product', supplier_name: 'Supplier', lot_number: 'Lot Number',
+pack_size_amount: 'Pack Size Amount', pack_size_unit: 'Pack Size Unit',
+number_of_packs: 'Number of Packs', total_amount: 'Total Amount', total_unit: 'Total Unit',
+expiry_date: 'Expiry Date', no_expiry: 'No Expiry', storage_location: 'Storage Location',
+tracking_number: 'Tracking Number', expense_amount: 'Expense (฿ THB)',
+action: 'Action', status: 'Status', notes: 'Notes', updated_by_name: 'Updated By',
+created_at: 'Recorded At',
+}
+
+const STOCK_UPDATE_FIELD_ORDER = [
+'action', 'product_name', 'supplier_name', 'lot_number',
+'pack_size_amount', 'pack_size_unit', 'number_of_packs', 'total_amount', 'total_unit',
+'expiry_date', 'no_expiry', 'storage_location', 'tracking_number', 'expense_amount',
+'notes', 'status', 'updated_by_name', 'created_at',
+]
 
 function formatDate(str) {
 if (!str) return '—'
@@ -46,6 +65,7 @@ year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-dig
 }
 
 function prettyLabel(key) {
+if (FIELD_LABELS[key]) return FIELD_LABELS[key]
 return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
@@ -55,6 +75,20 @@ if (typeof value === 'boolean') return value ? 'Yes' : 'No'
 if (key.includes('date') || key === 'created_at' || key === 'decided_at') return formatDate(value)
 if (Array.isArray(value)) return value.join(', ')
 return String(value)
+}
+
+// Visible [key, value] pairs for a detail record, in a sensible reading
+// order for known entity types (matching the actual form's field order),
+// falling back to the database's natural column order otherwise.
+function orderedEntries(entityType, detail) {
+const visible = Object.entries(detail).filter(([k]) => !HIDDEN_FIELDS.has(k))
+if (entityType === 'stock_update') {
+const byKey = Object.fromEntries(visible)
+const ordered = STOCK_UPDATE_FIELD_ORDER.filter(k => k in byKey).map(k => [k, byKey[k]])
+const leftover = visible.filter(([k]) => !STOCK_UPDATE_FIELD_ORDER.includes(k))
+return [...ordered, ...leftover]
+}
+return visible
 }
 
 export default function HistoryPage() {
@@ -185,7 +219,7 @@ This record no longer exists (it may have been deleted since this action).
 ) : (
 <div className="space-y-3">
 <div className="divide-y divide-gray-50 border border-gray-100 rounded-xl overflow-hidden">
-{Object.entries(detail).filter(([k]) => !HIDDEN_FIELDS.has(k)).map(([k, v]) => (
+{orderedEntries(selected.entity_type, detail).map(([k, v]) => (
 <div key={k} className="flex justify-between gap-3 px-3.5 py-2.5">
 <span className="text-xs text-gray-500 flex-shrink-0">{prettyLabel(k)}</span>
 <span className="text-xs font-medium text-gray-800 text-right break-words">{prettyValue(k, v)}</span>
