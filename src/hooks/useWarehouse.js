@@ -171,8 +171,9 @@ if (payload.status === 'confirmed' && payload.product_id) {
 await applyStockQty(payload.product_id, payload.action, payload.total_amount)
 }
 const actionLabel = payload.action === 'in' ? 'Stock In' : payload.action === 'out' ? 'Stock Out' : 'Stock Adjust'
-logActivity('created', 'stock_update', payload.product_name,
-`${actionLabel}: ${payload.total_amount ?? ''} ${payload.total_unit ?? ''} (${data.status})`, payload.product_id)
+const stockDetail = `${actionLabel}: ${payload.total_amount ?? ''} ${payload.total_unit ?? ''} (${data.status})`
++ (payload.notes ? ` — 📝 ${payload.notes}` : '')
+logActivity('created', 'stock_update', payload.product_name, stockDetail, payload.product_id)
 return data
 }
 
@@ -291,7 +292,8 @@ const rows = filled.map((item, i) => ({ ...item, delivery_id: id, item_order: i 
 const { error: ie } = await supabase.from('delivery_items').insert(rows)
 if (ie) throw ie
 }
-logActivity('updated', 'delivery', form_number, `${filled.length} product(s)`, id)
+logActivity('updated', 'delivery', form_number,
+`${filled.length} product(s)` + (rest.remark ? ` — 📝 ${rest.remark}` : ''), id)
 }
 
 // Figure out the next form number by looking at the highest sequence number
@@ -335,7 +337,8 @@ if (ie) throw ie
 if ((form.status || '').toLowerCase() === 'draft') {
 await notifyAdminsNewDraft(data, items)
 }
-logActivity('created', 'delivery', data.form_number, `${items.length} product(s) — ${form.customer_name || 'Lab use'}`, data.id)
+logActivity('created', 'delivery', data.form_number,
+`${items.length} product(s) — ${form.customer_name || 'Lab use'}` + (form.remark ? ` — 📝 ${form.remark}` : ''), data.id)
 return data
 }
 
@@ -682,7 +685,8 @@ owner_email: ownerEmail,
 note: note || null,
 })
 if (error) throw error
-logActivity('created', 'sample_request', productName, `Requested from ${ownerEmail}`)
+logActivity('created', 'sample_request', productName,
+`Requested from ${ownerEmail}` + (note ? ` — 📝 ${note}` : ''))
 }
 
 // Requests addressed to me (owner inbox)
