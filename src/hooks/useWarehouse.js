@@ -872,3 +872,84 @@ const { error } = await supabase.from('collections').delete().eq('id', collectio
 if (error) throw error
 logActivity('deleted', 'collection', c?.name || collectionId, null, collectionId)
 }
+
+// ── Postage / courier expense records ──────────────────────
+// Log of samples posted to customers via courier: who sent it, which
+// courier, tracking number, and the cost. Any staff can add; only admin
+// or the creator can delete.
+export function usePostageRecords({ search = '', pageSize = 30 } = {}) {
+const [rows, setRows] = useState([])
+const [loading, setLoading] = useState(true)
+const [page, setPage] = useState(0)
+const [hasMore, setHasMore] = useState(false)
+const [totalCost, setTotalCost] = useState(0)
+
+const fetch = useCallback(async (p = 0) => {
+setLoading(true)
+let q = supabase.from('postage_records').select('*')
+.order('delivery_date', { ascending: false, nullsFirst: false })
+.order('created_at', { ascending: false })
+if (search.trim()) {
+const s = search.trim()
+q = q.or(`sales_rep_name.ilike.%${s}%,customer_name.ilike.%${s}%,tracking_number.ilike.%${s}%,courier.ilike.%${s}%,remark.ilike.%${s}%`)
+}
+q = q.range(p * pageSize, p * pageSize + pageSize)
+const { data } = await q
+const list = data || []
+setHasMore(list.length > pageSize)
+setRows(list.slice(0, pageSize))
+setPage(p)
+setLoading(false)
+}, [search, pageSize])
+
+useEffect(() => { fetch(0) }, [fetch])
+
+// Running total cost for whatever's currently filtered (all matching rows,
+// not just the current page) — fetched separately since it needs every row.
+useEffect(() => {
+let cancelled = false
+;(async () => {
+let q = supabase.from('postage_records').select('price')
+if (search.trim()) {
+const s = search.trim()
+q = q.or(`sales_rep_name.ilike.%${s}%,customer_name.ilike.%${s}%,tracking_number.ilike.%${s}%,courier.ilike.%${s}%,remark.ilike.%${s}%`)
+}
+const { data } = await q
+if (!cancelled) setTotalCost((data || []).reduce((s, r) => s + (r.price || 0), 0))
+})()
+return () => { cancelled = true }
+}, [search])
+
+return {
+rows, loading, page, hasMore, totalCost,
+nextPage: () => hasMore && fetch(page + 1),
+prevPage: () => page > 0 && fetch(page - 1),
+refetch: () => fetch(page),
+}
+}
+
+export async function addPostageRecord(payload) {
+const { data: { user } } = await supabase.auth.getUser()
+let createdByName = null
+if (user) {
+const { data: me } = await supabase.from('sales_reps').select('full_name').eq('id', user.id).single()
+createdByName = me?.full_name || null
+}
+const { data, error } = await supabase.from('postage_records').insert({
+...payload,
+created_by: user?.id ?? null,
+created_by_name: createdByName,
+}).select().single()
+if (error) throw error
+logActivity('created', 'postage_record', data.customer_name || data.tracking_number || 'Postage record',
+`${data.courier || ''} ${data.tracking_number || ''} — ฿${data.price ?? '?'}`.trim(), data.id)
+return data
+}
+
+export async function deletePostageRecord(id) {
+const { data: r } = await supabase.from('postage_records').select('customer_name, tracking_number').eq('id', id).single()
+const { error } = await supabase.from('postage_records').delete().eq('id', id)
+if (error) throw error
+logActivity('deleted', 'postage_record', r?.customer_name || r?.tracking_number || id, null, id)
+}
+

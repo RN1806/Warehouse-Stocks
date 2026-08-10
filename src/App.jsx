@@ -12,6 +12,7 @@ import ShipmentsPage from './pages/ShipmentsPage'
 import ReportsPage from './pages/ReportsPage'
 import StaffPage from './pages/StaffPage'
 import HistoryPage from './pages/HistoryPage'
+import PostageRecordsPage from './pages/PostageRecordsPage'
 import { DeliveriesPage, DeliveryDetailPage, ProfilePage, CustomersPage } from './pages/Pages'
 import { useIncomingRequests, useNotifications } from './hooks/useWarehouse'
 import './index.css'
@@ -40,6 +41,7 @@ return [
 { id: 'products', label: 'Products', icon: '🧴', desc: 'Browse the catalogue' },
 { id: 'customers', label: 'Customer Book', icon: '🏢', desc: 'Customer address book' },
 { id: 'shipments', label: 'Shipments', icon: '✈️', desc: 'Abroad orders & tracking' },
+{ id: 'postage', label: 'Postage Records', icon: '📮', desc: 'Courier tracking & cost per delivery' },
 { id: 'reports', label: 'Reports', icon: '📊', desc: 'Stock import by industry' },
 { id: 'tracking', label: 'Sample Tracking', icon: '🔄', desc: 'In/out by supplier & product' },
 ...(isAdmin ? [{ id: 'staff', label: 'Staff Directory', icon: '👥', desc: 'Manage staff roles' }] : []),
@@ -51,7 +53,7 @@ return [
 const TITLES = {
 deliveries: 'Sample Delivery', alerts: 'Alerts', requests: 'Sample Requests',
 stock: 'Stock Manager', products: 'Products', customers: 'Customer Book',
-shipments: 'Shipments', reports: 'Reports', tracking: 'Sample Tracking',
+shipments: 'Shipments', reports: 'Reports', tracking: 'Sample Tracking', postage: 'Postage Records',
 staff: 'Staff Directory', profile: 'My Profile', history: 'History',
 }
 
@@ -109,6 +111,7 @@ case 'stock': return <StockPage />
 case 'products': return <ProductsPage />
 case 'customers': return <CustomersPage />
 case 'shipments': return <ShipmentsPage />
+case 'postage': return <PostageRecordsPage />
 case 'reports': return <ReportsPage />
 case 'tracking': return <SampleTrackingPage />
 case 'staff': return <StaffPage />
