@@ -51,6 +51,34 @@ refetch: () => fetch(page),
 }
 }
 
+// Which real table each audit_log entity_type maps to, and whether it needs
+// a joined child table for a fuller picture.
+const AUDIT_ENTITY_TABLES = {
+product: { table: 'products', select: '*' },
+stock_update: { table: 'stock_updates', select: '*' },
+delivery: { table: 'deliveries', select: '*, delivery_items(*)' },
+shipment: { table: 'shipments', select: '*, shipment_items(*)' },
+customer: { table: 'customers', select: '*' },
+supplier: { table: 'suppliers', select: '*' },
+collection: { table: 'collections', select: '*' },
+staff: { table: 'sales_reps', select: '*' },
+sample_request: { table: 'sample_requests', select: '*' },
+postage_record: { table: 'postage_records', select: '*' },
+}
+
+// Fetch the current full record behind a History entry, so it can be shown
+// in a detail view when the entry is clicked. Returns null if the entity
+// was deleted since (or the id/type isn't recognized) — the caller should
+// show a "no longer exists" state in that case rather than treat it as a
+// hard error.
+export async function fetchAuditEntityDetail(entityType, entityId) {
+if (!entityId) return null
+const cfg = AUDIT_ENTITY_TABLES[entityType]
+if (!cfg) return null
+const { data } = await supabase.from(cfg.table).select(cfg.select).eq('id', entityId).maybeSingle()
+return data || null
+}
+
 // ── Suppliers ─────────────────────────────────────────────
 export function useSuppliers() {
 const [suppliers, setSuppliers] = useState([])
@@ -173,7 +201,7 @@ await applyStockQty(payload.product_id, payload.action, payload.total_amount)
 const actionLabel = payload.action === 'in' ? 'Stock In' : payload.action === 'out' ? 'Stock Out' : 'Stock Adjust'
 const stockDetail = `${actionLabel}: ${payload.total_amount ?? ''} ${payload.total_unit ?? ''} (${data.status})`
 + (payload.notes ? ` — 📝 ${payload.notes}` : '')
-logActivity('created', 'stock_update', payload.product_name, stockDetail, payload.product_id)
+logActivity('created', 'stock_update', payload.product_name, stockDetail, data.id)
 return data
 }
 
@@ -185,7 +213,7 @@ const { error } = await supabase
 if (error) throw error
 await applyStockQty(productId, action, totalAmount)
 const { data: u } = await supabase.from('stock_updates').select('product_name').eq('id', updateId).single()
-logActivity('status_changed', 'stock_update', u?.product_name, 'pending → confirmed', productId)
+logActivity('status_changed', 'stock_update', u?.product_name, 'pending → confirmed', updateId)
 }
 
 async function applyStockQty(productId, action, amount) {
@@ -209,7 +237,7 @@ if (action === 'out') newQty = p.current_qty + (totalAmount || 0)
 await supabase.from('products').update({ current_qty: newQty }).eq('id', productId)
 }
 await supabase.from('stock_updates').delete().eq('id', updateId)
-logActivity('deleted', 'stock_update', u?.product_name, 'Undone — quantity reversed', productId)
+logActivity('deleted', 'stock_update', u?.product_name, 'Undone — quantity reversed', updateId)
 }
 
 // ── Customers ─────────────────────────────────────────────
@@ -677,16 +705,16 @@ return { needsApproval: true, owners }
 export async function createSampleRequest({ productName, ownerEmail, note }) {
 const { data: { user } } = await supabase.auth.getUser()
 const { data: me } = await supabase.from('sales_reps').select('email').eq('id', user.id).single()
-const { error } = await supabase.from('sample_requests').insert({
+const { data, error } = await supabase.from('sample_requests').insert({
 product_name: productName,
 requester_id: user.id,
 requester_email: me?.email,
 owner_email: ownerEmail,
 note: note || null,
-})
+}).select().single()
 if (error) throw error
 logActivity('created', 'sample_request', productName,
-`Requested from ${ownerEmail}` + (note ? ` — 📝 ${note}` : ''))
+`Requested from ${ownerEmail}` + (note ? ` — 📝 ${note}` : ''), data?.id)
 }
 
 // Requests addressed to me (owner inbox)
